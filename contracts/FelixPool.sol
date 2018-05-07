@@ -17,7 +17,7 @@ contract FelixPool {
     ERC20 public token;
 
     mapping (address => uint) public contributions;
-    mapping (address => uint) public tokenEntitlement;
+    mapping (address => uint) public tokenEntitlements;
 
     event ContributionMade(address indexed investor, uint contribution);
     event ContributionWithdrawn(address indexed investor, uint contribution);
@@ -56,7 +56,7 @@ contract FelixPool {
         uint tokensToReceive = value.mul(rate);
 
         contributions[msg.sender] = contributions[msg.sender].add(value);
-        tokenEntitlement[msg.sender] = tokenEntitlement[msg.sender].add(tokensToReceive);
+        tokenEntitlements[msg.sender] = tokenEntitlements[msg.sender].add(tokensToReceive);
         totalTokens = totalTokens.add(tokensToReceive);
         totalContributions = totalContributions.add(value);
         emit ContributionMade(msg.sender, value);
@@ -71,10 +71,10 @@ contract FelixPool {
         require(contributions[msg.sender] > 0);
 
         uint withdrawalValue = contributions[msg.sender];
-        totalTokens = totalTokens.sub(tokenEntitlement[msg.sender]);
+        totalTokens = totalTokens.sub(tokenEntitlements[msg.sender]);
         totalContributions = totalContributions.sub(contributions[msg.sender]);
 
-        tokenEntitlement[msg.sender] = 0;
+        tokenEntitlements[msg.sender] = 0;
         contributions[msg.sender] = 0;
         msg.sender.transfer(withdrawalValue);
 
@@ -101,10 +101,10 @@ contract FelixPool {
      */
     function claimEntitledTokens() public {
         require(tokenAddressConfirmed);
-        require(tokenEntitlement[msg.sender] > 0);
+        require(tokenEntitlements[msg.sender] > 0);
 
-        uint entitlement = tokenEntitlement[msg.sender];
-        tokenEntitlement[msg.sender] = 0;
+        uint entitlement = tokenEntitlements[msg.sender];
+        tokenEntitlements[msg.sender] = 0;
         token.transfer(msg.sender, entitlement);
         emit TokensClaimed(msg.sender, entitlement);
     }

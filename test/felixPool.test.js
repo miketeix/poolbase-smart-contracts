@@ -2,16 +2,16 @@ const FelixPool = artifacts.require('./FelixPool.sol');
 const BigNumber = web3.BigNumber;
 
 const { latestTime, duration, increaseTimeTo } = require('./helpers/timer');
-const { should, ensuresException } = require('./helpers/utils');
+const { should, ensuresException, ether } = require('./helpers/utils');
 
-contract('FelixPool', ([owner, investor, investor2, investor3]) => {
-    let felixPool;
+contract('FelixPool', ([owner, investor1, investor2, investor3]) => {
+    let felixPool, endTime;
 
     const threshold = new BigNumber(100);
-    const endTime = latestTime() + duration.days(20); // 20 days
     const rate = new BigNumber(10);
 
     beforeEach(async () => {
+        endTime = latestTime() + duration.days(20); // 20 days
         felixPool = await FelixPool.new(threshold, endTime, rate);
     });
 
@@ -32,26 +32,12 @@ contract('FelixPool', ([owner, investor, investor2, investor3]) => {
         });
     });
 
-    describe.only('#deposit', () => {
-        /*
-         * @dev Allows contributors to invest in the pool
-         */
-        // function deposit() public payable {
-        //     require(now <= endTime);
-        //     uint value = msg.value;
-        //     uint tokensToReceive = value.mul(rate);
-        //
-        //     contributions[msg.sender] = contributions[msg.sender].add(value);
-        //     tokenEntitlement[msg.sender] = tokenEntitlement[msg.sender].add(tokensToReceive);
-        //     totalTokens = totalTokens.add(tokensToReceive);
-        //     totalContributions = totalContributions.add(value);
-        //     emit ContributionMade(msg.sender, value);
-        // }
+    describe('#deposit', () => {
         it('does NOT allow investments after the pool finishes', async () => {
             await increaseTimeTo(latestTime() + duration.days(21));
 
             try {
-                await felixPool.deposit({ from: investor });
+                await felixPool.deposit({ from: investor1, value: ether(1) });
                 assert.fail();
             } catch (e) {
                 ensuresException(e);
@@ -61,123 +47,64 @@ contract('FelixPool', ([owner, investor, investor2, investor3]) => {
             totalContributions.should.be.bignumber.equal(0);
         });
 
-        // it('cannot update with an empty params', async () => {
-        //     try {
-        //         await registry.updateMerchant(merchant, '');
-        //         assert.fail();
-        //     } catch (e) {
-        //         ensuresException(e);
-        //     }
-        //
-        //     try {
-        //         await registry.updateMerchant(
-        //             '0x00',
-        //             '0x6e6577207061737361706f727444617461000000000000000000000000000000'
-        //         );
-        //         assert.fail();
-        //     } catch (e) {
-        //         ensuresException(e);
-        //     }
-        //
-        //     await registry.updateMerchant(
-        //         merchant,
-        //         '0x6e6577207061737361706f727444617461000000000000000000000000000000'
-        //     );
-        //
-        //     const firstMerchant = await registry.store.call(merchant);
-        //     firstMerchant[0].should.be.true;
-        //     firstMerchant[1].should.be.equal(
-        //         '0x6e6577207061737361706f727444617461000000000000000000000000000000'
-        //     );
-        // });
-        //
-        // it('only owner updates citizes', async () => {
-        //     try {
-        //         await registry.updateMerchant(
-        //             merchant,
-        //             '0x6e6577206e6577206e6577000000000000000000000000000000000000000000',
-        //             {
-        //                 from: merchant
-        //             }
-        //         );
-        //         assert.fail();
-        //     } catch (e) {
-        //         ensuresException(e);
-        //     }
-        //
-        //     await registry.updateMerchant(
-        //         merchant,
-        //         '0x6e6577206e6577206e6577000000000000000000000000000000000000000000',
-        //         {
-        //             from: owner
-        //         }
-        //     );
-        //
-        //     const firstMerchant = await registry.store.call(merchant);
-        //     firstMerchant[0].should.be.true;
-        //     firstMerchant[1].should.be.equal(
-        //         '0x6e6577206e6577206e6577000000000000000000000000000000000000000000'
-        //     );
-        // });
-    });
+        it('saves the number of contributions an investor has made', async () => {
+            await felixPool.deposit({ from: investor1, value: ether(1) });
 
-    describe('removeMerchant', () => {
-        it('needs to be a merchant to be removed', async () => {
-            try {
-                await registry.removeMerchant(merchant);
-                assert.fail();
-            } catch (e) {
-                ensuresException(e);
-            }
+            let totalContributions = await felixPool.totalContributions();
+            totalContributions.should.be.bignumber.equal(ether(1));
+            let investorContributions = await felixPool.contributions.call(
+                investor1
+            );
+            investorContributions.should.be.bignumber.equal(ether(1));
+
+            await felixPool.deposit({ from: investor1, value: ether(3) });
+
+            totalContributions = await felixPool.totalContributions();
+            totalContributions.should.be.bignumber.equal(ether(4));
+            investorContributions = await felixPool.contributions.call(
+                investor1
+            );
+            investorContributions.should.be.bignumber.equal(ether(4));
         });
 
-        it('allows only owner to remove merchant', async () => {
-            await registry.addMerchant(
-                merchant,
-                '0x7061737361706f72744461746100000000000000000000000000000000000000'
+        it('saves the tokens entitlements for an investor after it has contributed', async () => {
+            await felixPool.deposit({ from: investor1, value: ether(1) });
+
+            let totalTokens = await felixPool.totalTokens();
+            totalTokens.should.be.bignumber.equal(ether(1).mul(rate));
+            let investorTokenEntitlements = await felixPool.tokenEntitlements.call(
+                investor1
+            );
+            investorTokenEntitlements.should.be.bignumber.equal(
+                ether(1).mul(rate)
             );
 
-            try {
-                await registry.removeMerchant(merchant, { from: merchant2 });
-                assert.fail();
-            } catch (e) {
-                ensuresException(e);
-            }
+            await felixPool.deposit({ from: investor1, value: ether(3) });
 
-            const firstMerchant = await registry.store.call(merchant);
-            firstMerchant[0].should.be.true; // still a merchant
-        });
-
-        it('cannot remove an empty address', async () => {
-            await registry.addMerchant(
-                merchant,
-                '0x7061737361706f72744461746100000000000000000000000000000000000000'
+            totalTokens = await felixPool.totalTokens();
+            totalTokens.should.be.bignumber.equal(ether(4).mul(rate));
+            investorTokenEntitlements = await felixPool.tokenEntitlements.call(
+                investor1
             );
-
-            try {
-                await registry.removeMerchant('0x000');
-                assert.fail();
-            } catch (e) {
-                ensuresException(e);
-            }
-
-            const firstMerchant = await registry.store.call(merchant);
-            firstMerchant[0].should.be.true; // still a merchant
-            firstMerchant[1].should.be.equal(
-                '0x7061737361706f72744461746100000000000000000000000000000000000000'
+            investorTokenEntitlements.should.be.bignumber.equal(
+                ether(4).mul(rate)
             );
         });
 
-        it('removes merchant', async () => {
-            await registry.addMerchant(
-                merchant,
-                '0x7061737361706f72744461746100000000000000000000000000000000000000'
-            );
+        it('emits ContributionMade event', async () => {
+            const { logs } = await felixPool.deposit({
+                from: investor1,
+                value: ether(1)
+            });
 
-            await registry.removeMerchant(merchant, { from: owner });
+            const event = logs.find(e => e.event == 'ContributionMade');
+            expect(event).to.exist;
 
-            const firstMerchant = await registry.store.call(merchant);
-            firstMerchant[0].should.be.false; // no more a merchant
+            const { args } = logs[0];
+            const { investor, contribution } = args;
+
+            investor.should.be.equal(investor1);
+            contribution.should.be.bignumber.equal(ether(1));
         });
     });
 });
