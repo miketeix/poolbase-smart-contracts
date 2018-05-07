@@ -67,12 +67,12 @@ contract FelixPool {
      * or when the refundsAllowed flag is set
      */
     function withdrawContribution() public {
-        require(now <= endTime || refundsAllowed());
-        require(contributions[msg.sender] > 0);
+        require(totalContributions < threshold && contributions[msg.sender] > 0);
 
         uint withdrawalValue = contributions[msg.sender];
+
+        totalContributions = totalContributions.sub(withdrawalValue);
         totalTokens = totalTokens.sub(tokenEntitlements[msg.sender]);
-        totalContributions = totalContributions.sub(contributions[msg.sender]);
 
         tokenEntitlements[msg.sender] = 0;
         contributions[msg.sender] = 0;
@@ -107,9 +107,5 @@ contract FelixPool {
         tokenEntitlements[msg.sender] = 0;
         token.transfer(msg.sender, entitlement);
         emit TokensClaimed(msg.sender, entitlement);
-    }
-
-    function refundsAllowed() internal view returns(bool) {
-        return (totalContributions < threshold && now > endTime);
     }
 }
