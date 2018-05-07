@@ -7,7 +7,6 @@ pragma solidity 0.4.23;
 contract FelixPool {
     using SafeMath for uint;
     uint public threshold;
-    uint public startTime;
     uint public endTime;
     uint public rate;
     uint public totalTokens;
@@ -28,17 +27,15 @@ contract FelixPool {
     /*
      * @dev Constructor function of FelixPool contract
      * @param _threshold minimum amount of WEI for the pool to be successful
-     * @param _startTime unix timestamp when pool deposits begin being accepted
      * @param _endTime unix timestamp when pool is no longer accepting deposits
      * @param _rate multiplier which defines how many tokens to be received per Ether
      */
-    constructor(uint _threshold, uint _startTime, uint _endTime, uint _rate) public {
+    constructor(uint _threshold, uint _endTime, uint _rate) public {
         admin = msg.sender;
         require(_threshold != 0 && _rate != 0);
-        require(_startTime > now && _startTime < _endTime);
+        require(now < _endTime);
 
         threshold = _threshold;
-        startTime = _startTime;
         endTime = _endTime;
         rate = _rate;
     }
