@@ -1,4 +1,5 @@
 const FelixPool = artifacts.require('./FelixPool.sol');
+const TokenMock = artifacts.require('./TokenMock.sol');
 const BigNumber = web3.BigNumber;
 
 const { latestTime, duration, increaseTimeTo } = require('./helpers/timer');
@@ -255,6 +256,118 @@ contract('FelixPool', ([owner, investor1, investor2, investor3]) => {
 
             investor.should.be.equal(investor1);
             contribution.should.be.bignumber.equal(ether(1));
+        });
+    });
+
+    describe('#confirmTokenAddress', () => {
+        let token;
+        const totalTokensForPool = threshold.mul(rate);
+
+        beforeEach(async () => {
+            token = await TokenMock.new(felixPool.address, totalTokensForPool);
+        });
+
+        it('requires admin to set token address', async () => {
+            await felixPool.deposit({
+                from: investor1,
+                value: threshold
+            });
+
+            await increaseTimeTo(latestTime() + duration.days(21));
+
+            try {
+                await felixPool.confirmTokenAddress(token.address, {
+                    from: investor1
+                });
+                assert.fail();
+            } catch (e) {
+                ensuresException(e);
+            }
+
+            const tokenAddressConfirmed = await felixPool.tokenAddressConfirmed();
+            tokenAddressConfirmed.should.be.false;
+        });
+
+        it('requires pool to have finished', async () => {
+            await felixPool.deposit({
+                from: investor1,
+                value: threshold
+            });
+
+            try {
+                await felixPool.confirmTokenAddress(token.address, {
+                    from: owner
+                });
+                assert.fail();
+            } catch (e) {
+                ensuresException(e);
+            }
+
+            const tokenAddressConfirmed = await felixPool.tokenAddressConfirmed();
+            tokenAddressConfirmed.should.be.false;
+        });
+
+        it('requires equal or more tokens sent to pool contract', async () => {
+            // eRC20 tokens for tranferred to felixPool is lower than
+            // the totalTokens felixPool expects
+            await felixPool.deposit({
+                from: investor1,
+                value: threshold.add(ether(1))
+            });
+
+            await increaseTimeTo(latestTime() + duration.days(21));
+            const test = await felixPool.totalTokens();
+            const test2 = await token.balanceOf(felixPool.address);
+
+            try {
+                await felixPool.confirmTokenAddress(token.address, {
+                    from: owner
+                });
+                assert.fail();
+            } catch (e) {
+                ensuresException(e);
+            }
+
+            const tokenAddressConfirmed = await felixPool.tokenAddressConfirmed();
+            tokenAddressConfirmed.should.be.false;
+        });
+
+        it('sets ERC20 token to pool', async () => {
+            await felixPool.deposit({
+                from: investor1,
+                value: threshold
+            });
+
+            await increaseTimeTo(latestTime() + duration.days(21));
+
+            await felixPool.confirmTokenAddress(token.address, { from: owner });
+
+            const tokenAddressConfirmed = await felixPool.tokenAddressConfirmed();
+            tokenAddressConfirmed.should.be.true;
+
+            const erc20InPool = await felixPool.token();
+            erc20InPool.should.be.equal(token.address);
+        });
+
+        it('emits TokenConfirmed event', async () => {
+            await felixPool.deposit({
+                from: investor1,
+                value: threshold
+            });
+            await increaseTimeTo(latestTime() + duration.days(21));
+
+            const { logs } = await felixPool.confirmTokenAddress(
+                token.address,
+                { from: owner }
+            );
+
+            const event = logs.find(e => e.event == 'TokenConfirmed');
+            expect(event).to.exist;
+
+            const { args } = logs[0];
+            const { tokenAddress } = args;
+
+            tokenAddress.should.be.equal(token.address);
         });
     });
 });
