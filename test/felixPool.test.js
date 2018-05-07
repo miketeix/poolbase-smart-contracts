@@ -370,4 +370,116 @@ contract('FelixPool', ([owner, investor1, investor2, investor3]) => {
             tokenAddress.should.be.equal(token.address);
         });
     });
+
+    describe('#claimEntitledTokens', () => {
+        let token;
+        const totalTokensForPool = threshold.mul(rate);
+
+        beforeEach(async () => {
+            token = await TokenMock.new(felixPool.address, totalTokensForPool);
+
+            await felixPool.deposit({
+                from: investor3,
+                value: threshold
+            });
+
+            await increaseTimeTo(latestTime() + duration.days(21));
+        });
+
+        it('cannot claim when ERC20 tokens are not set', async () => {
+            try {
+                await felixPool.claimEntitledTokens({
+                    from: investor3
+                });
+                assert.fail();
+            } catch (e) {
+                ensuresException(e);
+            }
+
+            const investorTokenEntitlements = await felixPool.tokenEntitlements.call(
+                investor3
+            );
+
+            investorTokenEntitlements.should.be.bignumber.equal(
+                threshold.mul(rate)
+            );
+
+            const investorTokenBalance = await token.balanceOf(investor3);
+            investorTokenBalance.should.be.bignumber.equal(0);
+        });
+
+        it('cannot claim ERC20 token when investor has not invested in the pool', async () => {
+            await felixPool.confirmTokenAddress(token.address, { from: owner });
+
+            try {
+                await felixPool.claimEntitledTokens({
+                    from: investor2
+                });
+                assert.fail();
+            } catch (e) {
+                ensuresException(e);
+            }
+
+            const investor2TokenEntitlements = await felixPool.tokenEntitlements.call(
+                investor2
+            );
+            investor2TokenEntitlements.should.be.bignumber.equal(0);
+
+            const investor2TokenBalance = await token.balanceOf(investor2);
+            investor2TokenBalance.should.be.bignumber.equal(0);
+        });
+
+        it('claims ERC20 tokens for investor', async () => {
+            await felixPool.confirmTokenAddress(token.address, { from: owner });
+
+            await felixPool.claimEntitledTokens({
+                from: investor3
+            });
+
+            let investorTokenEntitlements = await felixPool.tokenEntitlements.call(
+                investor3
+            );
+            // tokens entitlement is zero because investor has already remmoved them
+            investorTokenEntitlements.should.be.bignumber.equal(0);
+
+            let investorTokenBalance = await token.balanceOf(investor3);
+            investorTokenBalance.should.be.bignumber.equal(threshold.mul(rate));
+
+            try {
+                // can only claim once
+                await felixPool.claimEntitledTokens({
+                    from: investor3
+                });
+                assert.fail();
+            } catch (e) {
+                ensuresException(e);
+            }
+
+            investorTokenEntitlements = await felixPool.tokenEntitlements.call(
+                investor3
+            );
+            // tokens entitlement is zero because investor has already remmoved them
+            investorTokenEntitlements.should.be.bignumber.equal(0);
+
+            investorTokenBalance = await token.balanceOf(investor3);
+            investorTokenBalance.should.be.bignumber.equal(threshold.mul(rate));
+        });
+
+        it('emits TokensClaimed event', async () => {
+            await felixPool.confirmTokenAddress(token.address, { from: owner });
+
+            const { logs } = await felixPool.claimEntitledTokens({
+                from: investor3
+            });
+
+            const event = logs.find(e => e.event == 'TokensClaimed');
+            expect(event).to.exist;
+
+            const { args } = logs[0];
+            const { investor, claimed } = args;
+
+            investor.should.be.equal(investor3);
+            claimed.should.be.bignumber.equal(threshold.mul(rate));
+        });
+    });
 });
