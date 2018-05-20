@@ -1,6 +1,6 @@
 import 'openzeppelin-solidity/contracts/math/SafeMath.sol';
-import 'openzeppelin-solidity/contracts/token/ERC20/ERC20.sol';
 import 'openzeppelin-solidity/contracts/crowdsale/distribution/utils/RefundVault.sol';
+import 'openzeppelin-solidity/contracts/token/ERC20/ERC20.sol';
 
 pragma solidity 0.4.23;
 
@@ -14,19 +14,20 @@ contract FelixPool {
     uint256 public totalTokens;
     uint256 public weiRaised;
     address public admin;
-    bool public tokenAddressConfirmed;
-    // default is 100%
-    uint256 public percentageOfTokensAllowedToClaim = 100;
+
+    uint256 public cliff;
+    uint256 public start;
+    uint256 public duration;
 
     ERC20 public token;
     // refund vault used to hold funds while pool is running
     RefundVault public vault;
 
+    mapping (address => uint256) public releasedTokens;
     mapping (address => uint256) public tokenEntitlements;
 
     event ContributionMade(address indexed investor, uint256 contribution);
-    event TokenConfirmed(address tokenAddress);
-    event TokensClaimed(address indexed investor, uint256 claimed);
+    event Released(address beneficiary, uint256 amount);
 
     /*
      * @dev Constructor function of FelixPool contract
@@ -95,45 +96,76 @@ contract FelixPool {
     }
 
     /*
-     * @dev Finalize pool and add ERC20 token for distribution
-     * @param _tokenAddress ERC20 token contract address
+     * @dev Finalize pool setting token and its distribution rules
+     * @param _token ERC20 address
+     * @param _start timestamp representing the beginning of the token vesting process
+     * @param _cliff duration in seconds of the cliff in which tokens will begin to vest. ie 1 year in secs
+     * @param _duration time in seconds of the period in which the tokens completely vest. ie 4 years in secs
      */
-    function finalizePool(ERC20 _tokenAddress) public {
+    function finalizePool
+    (
+        ERC20 _token,
+        uint256 _start,
+        uint256 _cliff,
+        uint256 _duration
+    )
+        public
+    {
         require(msg.sender == admin);
         require(now > endTime);
 
         if (weiRaised >= threshold) {
           vault.close();
 
-          tokenAddressConfirmed = true;
-          token = ERC20(_tokenAddress);
+          require(_token != address(0) && _cliff != 0);
+          require(_cliff <= _duration);
+          require(_start > now);
+
+          duration = _duration;
+          cliff = _start.add(_cliff);
+          start = _start;
+
+          token = ERC20(_token);
           require(token.balanceOf(address(this)) >= totalTokens);
-          emit TokenConfirmed(_tokenAddress);
         } else {
           vault.enableRefunds();
         }
     }
 
-    /*
-     * @dev Change the percentage of tokens to claim
-     * @param _percentageOfTokensAllowedToClaim New percentage figure
+    /**
+     * @notice Transfers vested tokens to beneficiary.
      */
-    function setTokenClaimPercentage(uint256 _percentageOfTokensAllowedToClaim) public {
-        require(msg.sender == admin);
+    function release() public {
+        uint256 unreleased = releasableAmount();
 
-        percentageOfTokensAllowedToClaim = _percentageOfTokensAllowedToClaim;
+        require(unreleased > 0);
+
+        releasedTokens[msg.sender] = releasedTokens[msg.sender].add(unreleased);
+
+        token.transfer(msg.sender, unreleased);
+
+        emit Released(msg.sender, unreleased);
     }
 
-    /*
-     * @dev Allow investors to claim their purchase tokens
+    /**
+     * @dev Calculates the amount that has already vested but hasn't been released yet.
      */
-    function claimEntitledTokens() public {
-        require(tokenAddressConfirmed);
-        require(tokenEntitlements[msg.sender] > 0);
+    function releasableAmount() public view returns (uint256) {
+        return vestedAmount().sub(releasedTokens[msg.sender]);
+    }
 
-        uint256 tokensToClaim = tokenEntitlements[msg.sender].mul(percentageOfTokensAllowedToClaim).div(100);
-        tokenEntitlements[msg.sender] = tokenEntitlements[msg.sender].sub(tokensToClaim);
-        token.transfer(msg.sender, tokensToClaim);
-        emit TokensClaimed(msg.sender, tokensToClaim);
+    /**
+     * @dev Calculates the amount that has already vested.
+     */
+    function vestedAmount() public view returns (uint256) {
+        uint256 totalBalance = tokenEntitlements[msg.sender];
+
+        if (now < cliff) {
+            return 0;
+        } else if (now >= start.add(duration)) {
+            return totalBalance;
+        } else {
+            return totalBalance.mul(now.sub(start)).div(duration);
+        }
     }
 }

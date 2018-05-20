@@ -6,624 +6,650 @@ const BigNumber = web3.BigNumber;
 const { latestTime, duration, increaseTimeTo } = require('./helpers/timer');
 const { should, ensuresException, ether } = require('./helpers/utils');
 
-contract('FelixPool', ([owner, wallet, investor1, investor2, investor3]) => {
-    let felixPool, vault, endTime;
+contract(
+    'FelixPool',
+    ([owner, wallet, investor1, investor2, investor3, beneficiary]) => {
+        let felixPool, vault, endTime;
+        let start, token, cliff, length;
 
-    const threshold = ether(10);
-    const cap = ether(20);
-    const rate = new BigNumber(2);
+        const threshold = ether(10);
+        const cap = ether(20);
+        const rate = new BigNumber(2);
 
-    beforeEach(async () => {
-        endTime = latestTime() + duration.days(20); // 20 days
-        felixPool = await FelixPool.new(threshold, cap, endTime, rate, wallet);
-        const vaultAddress = await felixPool.vault();
-        vault = await RefundVault.at(vaultAddress);
-    });
-
-    describe('constructor sets variables', () => {
-        it('sets the pool threshold', async () => {
-            const thresholdInContract = await felixPool.threshold();
-            thresholdInContract.should.be.bignumber.equal(threshold);
+        beforeEach(async () => {
+            endTime = latestTime() + duration.days(20); // 20 days
+            felixPool = await FelixPool.new(
+                threshold,
+                cap,
+                endTime,
+                rate,
+                wallet
+            );
+            const vaultAddress = await felixPool.vault();
+            vault = await RefundVault.at(vaultAddress);
         });
 
-        it('sets the pool cap', async () => {
-            const capInContract = await felixPool.cap();
-            capInContract.should.be.bignumber.equal(cap);
+        describe('constructor sets variables', () => {
+            it('sets the pool threshold', async () => {
+                const thresholdInContract = await felixPool.threshold();
+                thresholdInContract.should.be.bignumber.equal(threshold);
+            });
+
+            it('sets the pool cap', async () => {
+                const capInContract = await felixPool.cap();
+                capInContract.should.be.bignumber.equal(cap);
+            });
+
+            it('sets endTime', async () => {
+                const endTimeInContract = await felixPool.endTime();
+                endTimeInContract.should.be.bignumber.equal(endTime);
+            });
+
+            it('sets admin', async () => {
+                const admin = await felixPool.admin();
+                admin.should.be.bignumber.equal(owner);
+            });
+
+            it('sets rate', async () => {
+                const rateInContract = await felixPool.rate();
+                rateInContract.should.be.bignumber.equal(rate);
+            });
+
+            it('creates refund vault contract with a wallet', async () => {
+                const refundVaultInContract = await felixPool.vault();
+                refundVaultInContract.should.be.equal(vault.address);
+
+                const vaultWallet = await vault.wallet();
+                vaultWallet.should.be.equal(wallet);
+            });
         });
 
-        it('sets endTime', async () => {
-            const endTimeInContract = await felixPool.endTime();
-            endTimeInContract.should.be.bignumber.equal(endTime);
-        });
+        describe('#invest', () => {
+            it('does NOT allow investments after the pool finishes', async () => {
+                await increaseTimeTo(latestTime() + duration.days(21));
 
-        it('sets admin', async () => {
-            const admin = await felixPool.admin();
-            admin.should.be.bignumber.equal(owner);
-        });
+                try {
+                    await felixPool.invest({
+                        from: investor1,
+                        value: ether(1)
+                    });
+                    assert.fail();
+                } catch (e) {
+                    ensuresException(e);
+                }
 
-        it('sets rate', async () => {
-            const rateInContract = await felixPool.rate();
-            rateInContract.should.be.bignumber.equal(rate);
-        });
+                const weiRaised = await felixPool.weiRaised();
+                weiRaised.should.be.bignumber.equal(0);
+            });
 
-        it('creates refund vault contract with a wallet', async () => {
-            const refundVaultInContract = await felixPool.vault();
-            refundVaultInContract.should.be.equal(vault.address);
+            it('does NOT allow investments once the pool cap is reached', async () => {
+                await felixPool.invest({ from: investor3, value: ether(20) });
 
-            const vaultWallet = await vault.wallet();
-            vaultWallet.should.be.equal(wallet);
-        });
-    });
+                try {
+                    await felixPool.invest({
+                        from: investor2,
+                        value: ether(1)
+                    });
+                    assert.fail();
+                } catch (e) {
+                    ensuresException(e);
+                }
 
-    describe('#invest', () => {
-        it('does NOT allow investments after the pool finishes', async () => {
-            await increaseTimeTo(latestTime() + duration.days(21));
+                const weiRaised = await felixPool.weiRaised();
+                weiRaised.should.be.bignumber.equal(ether(20));
+            });
 
-            try {
+            it('saves the number of deposit an investor has made', async () => {
                 await felixPool.invest({ from: investor1, value: ether(1) });
-                assert.fail();
-            } catch (e) {
-                ensuresException(e);
-            }
 
-            const weiRaised = await felixPool.weiRaised();
-            weiRaised.should.be.bignumber.equal(0);
+                let weiRaised = await felixPool.weiRaised();
+                weiRaised.should.be.bignumber.equal(ether(1));
+                let investorContributions = await vault.deposited.call(
+                    investor1
+                );
+                investorContributions.should.be.bignumber.equal(ether(1));
+
+                await felixPool.invest({ from: investor1, value: ether(3) });
+
+                weiRaised = await felixPool.weiRaised();
+                weiRaised.should.be.bignumber.equal(ether(4));
+                investorContributions = await vault.deposited.call(investor1);
+                investorContributions.should.be.bignumber.equal(ether(4));
+            });
+
+            it('allows total contribution to be sent by sending ether to the contract directly', async () => {
+                await felixPool.sendTransaction({
+                    from: investor1,
+                    value: ether(1)
+                });
+
+                let weiRaised = await felixPool.weiRaised();
+                weiRaised.should.be.bignumber.equal(ether(1));
+                let investorContributions = await vault.deposited.call(
+                    investor1
+                );
+                investorContributions.should.be.bignumber.equal(ether(1));
+
+                await felixPool.sendTransaction({
+                    from: investor1,
+                    value: ether(3)
+                });
+
+                weiRaised = await felixPool.weiRaised();
+                weiRaised.should.be.bignumber.equal(ether(4));
+                investorContributions = await vault.deposited.call(investor1);
+                investorContributions.should.be.bignumber.equal(ether(4));
+            });
+
+            it('saves the tokens entitlements for an investor after it has contributed', async () => {
+                await felixPool.invest({ from: investor1, value: ether(1) });
+
+                let totalTokens = await felixPool.totalTokens();
+                totalTokens.should.be.bignumber.equal(ether(1).mul(rate));
+                let investorTokenEntitlements = await felixPool.tokenEntitlements.call(
+                    investor1
+                );
+                investorTokenEntitlements.should.be.bignumber.equal(
+                    ether(1).mul(rate)
+                );
+
+                await felixPool.invest({ from: investor1, value: ether(3) });
+
+                totalTokens = await felixPool.totalTokens();
+                totalTokens.should.be.bignumber.equal(ether(4).mul(rate));
+                investorTokenEntitlements = await felixPool.tokenEntitlements.call(
+                    investor1
+                );
+                investorTokenEntitlements.should.be.bignumber.equal(
+                    ether(4).mul(rate)
+                );
+            });
+
+            it('emits ContributionMade event', async () => {
+                const { logs } = await felixPool.invest({
+                    from: investor1,
+                    value: ether(1)
+                });
+
+                const event = logs.find(e => e.event == 'ContributionMade');
+                expect(event).to.exist;
+
+                const { args } = logs[0];
+                const { investor, contribution } = args;
+
+                investor.should.be.equal(investor1);
+                contribution.should.be.bignumber.equal(ether(1));
+            });
         });
 
-        it('does NOT allow investments once the pool cap is reached', async () => {
-            await felixPool.invest({ from: investor3, value: ether(20) });
+        describe('#claimRefund', () => {
+            const totalTokensForPool = threshold.mul(rate);
 
-            try {
+            beforeEach(async () => {
+                start = latestTime() + duration.days(22);
+                cliff = duration.years(1);
+                length = duration.years(2);
+                token = await TokenMock.new(
+                    felixPool.address,
+                    totalTokensForPool
+                );
+            });
+
+            it('does NOT allow investment withdraws when investor has not contributed', async () => {
+                await increaseTimeTo(latestTime() + duration.days(21));
+                await felixPool.finalizePool(
+                    token.address,
+                    start,
+                    cliff,
+                    length
+                );
+
+                let investorContributions = await vault.deposited.call(
+                    investor1
+                );
+                investorContributions.should.be.bignumber.equal(0);
+
+                await felixPool.claimRefund({ from: investor1 });
+
+                const weiRaised = await felixPool.weiRaised();
+                weiRaised.should.be.bignumber.equal(0);
+
+                investorContributions = await vault.deposited.call(investor1);
+                investorContributions.should.be.bignumber.equal(0);
+            });
+
+            it('does NOT allow withdraws when the pool is successful', async () => {
+                await felixPool.invest({ from: investor1, value: threshold });
+
+                await increaseTimeTo(latestTime() + duration.days(21));
+                await felixPool.finalizePool(
+                    token.address,
+                    start,
+                    cliff,
+                    length,
+                    {
+                        from: owner
+                    }
+                );
+
+                try {
+                    await felixPool.claimRefund({ from: investor1 });
+                    assert.fail();
+                } catch (e) {
+                    ensuresException(e);
+                }
+
+                const weiRaised = await felixPool.weiRaised();
+                weiRaised.should.be.bignumber.equal(threshold);
+
+                const investorContributions = await vault.deposited.call(
+                    investor1
+                );
+                investorContributions.should.be.bignumber.equal(threshold);
+            });
+
+            it('does NOT allow withdraws when the pool is not finalized', async () => {
+                await felixPool.invest({ from: investor1, value: threshold });
+
+                await increaseTimeTo(latestTime() + duration.days(21));
+
+                try {
+                    await felixPool.claimRefund({ from: investor1 });
+                    assert.fail();
+                } catch (e) {
+                    ensuresException(e);
+                }
+
+                const weiRaised = await felixPool.weiRaised();
+                weiRaised.should.be.bignumber.equal(threshold);
+
+                const investorContributions = await vault.deposited.call(
+                    investor1
+                );
+                investorContributions.should.be.bignumber.equal(threshold);
+            });
+
+            it('withdraws contributions an investor has made', async () => {
+                await felixPool.invest({ from: investor1, value: ether(2) });
                 await felixPool.invest({ from: investor2, value: ether(1) });
-                assert.fail();
-            } catch (e) {
-                ensuresException(e);
-            }
 
-            const weiRaised = await felixPool.weiRaised();
-            weiRaised.should.be.bignumber.equal(ether(20));
-        });
+                let weiRaised = await felixPool.weiRaised();
+                weiRaised.should.be.bignumber.equal(ether(3));
 
-        it('saves the number of deposit an investor has made', async () => {
-            await felixPool.invest({ from: investor1, value: ether(1) });
+                let investorContributions = await vault.deposited.call(
+                    investor1
+                );
+                investorContributions.should.be.bignumber.equal(ether(2));
 
-            let weiRaised = await felixPool.weiRaised();
-            weiRaised.should.be.bignumber.equal(ether(1));
-            let investorContributions = await vault.deposited.call(investor1);
-            investorContributions.should.be.bignumber.equal(ether(1));
+                await increaseTimeTo(latestTime() + duration.days(21));
+                await felixPool.finalizePool(
+                    token.address,
+                    start,
+                    cliff,
+                    length
+                );
 
-            await felixPool.invest({ from: investor1, value: ether(3) });
-
-            weiRaised = await felixPool.weiRaised();
-            weiRaised.should.be.bignumber.equal(ether(4));
-            investorContributions = await vault.deposited.call(investor1);
-            investorContributions.should.be.bignumber.equal(ether(4));
-        });
-
-        it('allows total contribution to be sent by sending ether to the contract directly', async () => {
-            await felixPool.sendTransaction({
-                from: investor1,
-                value: ether(1)
-            });
-
-            let weiRaised = await felixPool.weiRaised();
-            weiRaised.should.be.bignumber.equal(ether(1));
-            let investorContributions = await vault.deposited.call(investor1);
-            investorContributions.should.be.bignumber.equal(ether(1));
-
-            await felixPool.sendTransaction({
-                from: investor1,
-                value: ether(3)
-            });
-
-            weiRaised = await felixPool.weiRaised();
-            weiRaised.should.be.bignumber.equal(ether(4));
-            investorContributions = await vault.deposited.call(investor1);
-            investorContributions.should.be.bignumber.equal(ether(4));
-        });
-
-        it('saves the tokens entitlements for an investor after it has contributed', async () => {
-            await felixPool.invest({ from: investor1, value: ether(1) });
-
-            let totalTokens = await felixPool.totalTokens();
-            totalTokens.should.be.bignumber.equal(ether(1).mul(rate));
-            let investorTokenEntitlements = await felixPool.tokenEntitlements.call(
-                investor1
-            );
-            investorTokenEntitlements.should.be.bignumber.equal(
-                ether(1).mul(rate)
-            );
-
-            await felixPool.invest({ from: investor1, value: ether(3) });
-
-            totalTokens = await felixPool.totalTokens();
-            totalTokens.should.be.bignumber.equal(ether(4).mul(rate));
-            investorTokenEntitlements = await felixPool.tokenEntitlements.call(
-                investor1
-            );
-            investorTokenEntitlements.should.be.bignumber.equal(
-                ether(4).mul(rate)
-            );
-        });
-
-        it('emits ContributionMade event', async () => {
-            const { logs } = await felixPool.invest({
-                from: investor1,
-                value: ether(1)
-            });
-
-            const event = logs.find(e => e.event == 'ContributionMade');
-            expect(event).to.exist;
-
-            const { args } = logs[0];
-            const { investor, contribution } = args;
-
-            investor.should.be.equal(investor1);
-            contribution.should.be.bignumber.equal(ether(1));
-        });
-    });
-
-    describe('#claimRefund', () => {
-        let token;
-        const totalTokensForPool = threshold.mul(rate);
-
-        beforeEach(async () => {
-            token = await TokenMock.new(felixPool.address, totalTokensForPool);
-        });
-
-        it('does NOT allow investment withdraws when investor has not contributed', async () => {
-            await increaseTimeTo(latestTime() + duration.days(21));
-            await felixPool.finalizePool(token.address);
-
-            let investorContributions = await vault.deposited.call(investor1);
-            investorContributions.should.be.bignumber.equal(0);
-
-            await felixPool.claimRefund({ from: investor1 });
-
-            const weiRaised = await felixPool.weiRaised();
-            weiRaised.should.be.bignumber.equal(0);
-
-            investorContributions = await vault.deposited.call(investor1);
-            investorContributions.should.be.bignumber.equal(0);
-        });
-
-        it('does NOT allow withdraws when the pool is successful', async () => {
-            await felixPool.invest({ from: investor1, value: threshold });
-
-            await increaseTimeTo(latestTime() + duration.days(21));
-            await felixPool.finalizePool(token.address);
-
-            try {
                 await felixPool.claimRefund({ from: investor1 });
-                assert.fail();
-            } catch (e) {
-                ensuresException(e);
-            }
 
-            const weiRaised = await felixPool.weiRaised();
-            weiRaised.should.be.bignumber.equal(threshold);
+                weiRaised = await felixPool.weiRaised();
+                weiRaised.should.be.bignumber.equal(ether(1));
 
-            const investorContributions = await vault.deposited.call(investor1);
-            investorContributions.should.be.bignumber.equal(threshold);
-        });
+                investorContributions = await vault.deposited.call(investor1);
+                investorContributions.should.be.bignumber.equal(0);
 
-        it('does NOT allow withdraws when the pool is not finalized', async () => {
-            await felixPool.invest({ from: investor1, value: threshold });
+                const investor2Contributions = await vault.deposited.call(
+                    investor2
+                );
+                investor2Contributions.should.be.bignumber.equal(ether(1));
+            });
 
-            await increaseTimeTo(latestTime() + duration.days(21));
+            it('resets token entitlements for investors who have withdrawn their investments', async () => {
+                await felixPool.invest({ from: investor1, value: ether(2) });
+                await felixPool.invest({ from: investor2, value: ether(1) });
 
-            try {
+                let totalTokens = await felixPool.totalTokens();
+                totalTokens.should.be.bignumber.equal(ether(3).mul(rate));
+                let investorTokenEntitlements = await felixPool.tokenEntitlements.call(
+                    investor1
+                );
+                investorTokenEntitlements.should.be.bignumber.equal(
+                    ether(2).mul(rate)
+                );
+
+                await increaseTimeTo(latestTime() + duration.days(21));
+                await felixPool.finalizePool(
+                    token.address,
+                    start,
+                    cliff,
+                    length
+                );
+
                 await felixPool.claimRefund({ from: investor1 });
-                assert.fail();
-            } catch (e) {
-                ensuresException(e);
-            }
 
-            const weiRaised = await felixPool.weiRaised();
-            weiRaised.should.be.bignumber.equal(threshold);
+                totalTokens = await felixPool.totalTokens();
+                totalTokens.should.be.bignumber.equal(ether(1).mul(rate));
+                investorTokenEntitlements = await felixPool.tokenEntitlements.call(
+                    investor1
+                );
+                investorTokenEntitlements.should.be.bignumber.equal(0);
 
-            const investorContributions = await vault.deposited.call(investor1);
-            investorContributions.should.be.bignumber.equal(threshold);
-        });
-
-        it('withdraws contributions an investor has made', async () => {
-            await felixPool.invest({ from: investor1, value: ether(2) });
-            await felixPool.invest({ from: investor2, value: ether(1) });
-
-            let weiRaised = await felixPool.weiRaised();
-            weiRaised.should.be.bignumber.equal(ether(3));
-
-            let investorContributions = await vault.deposited.call(investor1);
-            investorContributions.should.be.bignumber.equal(ether(2));
-
-            await increaseTimeTo(latestTime() + duration.days(21));
-            await felixPool.finalizePool(token.address);
-
-            await felixPool.claimRefund({ from: investor1 });
-
-            weiRaised = await felixPool.weiRaised();
-            weiRaised.should.be.bignumber.equal(ether(1));
-
-            investorContributions = await vault.deposited.call(investor1);
-            investorContributions.should.be.bignumber.equal(0);
-
-            const investor2Contributions = await vault.deposited.call(
-                investor2
-            );
-            investor2Contributions.should.be.bignumber.equal(ether(1));
-        });
-
-        it('resets token entitlements for investors who have withdrawn their investments', async () => {
-            await felixPool.invest({ from: investor1, value: ether(2) });
-            await felixPool.invest({ from: investor2, value: ether(1) });
-
-            let totalTokens = await felixPool.totalTokens();
-            totalTokens.should.be.bignumber.equal(ether(3).mul(rate));
-            let investorTokenEntitlements = await felixPool.tokenEntitlements.call(
-                investor1
-            );
-            investorTokenEntitlements.should.be.bignumber.equal(
-                ether(2).mul(rate)
-            );
-
-            await increaseTimeTo(latestTime() + duration.days(21));
-            await felixPool.finalizePool(token.address);
-
-            await felixPool.claimRefund({ from: investor1 });
-
-            totalTokens = await felixPool.totalTokens();
-            totalTokens.should.be.bignumber.equal(ether(1).mul(rate));
-            investorTokenEntitlements = await felixPool.tokenEntitlements.call(
-                investor1
-            );
-            investorTokenEntitlements.should.be.bignumber.equal(0);
-
-            const investor2TokenEntitlements = await felixPool.tokenEntitlements.call(
-                investor2
-            );
-            investor2TokenEntitlements.should.be.bignumber.equal(
-                ether(1).mul(rate)
-            );
-        });
-
-        it('transfers wei investment back to the investor', async () => {
-            const investorWeiBalance = web3.eth.getBalance(investor1);
-            await felixPool.invest({ from: investor1, value: ether(5) });
-
-            await increaseTimeTo(latestTime() + duration.days(21));
-            await felixPool.finalizePool(token.address);
-
-            await felixPool.claimRefund({ from: investor1 });
-
-            const investorWeiBalancePostInteraction = web3.eth.getBalance(
-                investor1
-            );
-
-            investorWeiBalancePostInteraction
-                .toNumber()
-                .should.be.closeTo(investorWeiBalance.toNumber(), 1e17);
-        });
-
-        it('emits Refunded event', async () => {
-            await felixPool.invest({
-                from: investor1,
-                value: ether(1)
+                const investor2TokenEntitlements = await felixPool.tokenEntitlements.call(
+                    investor2
+                );
+                investor2TokenEntitlements.should.be.bignumber.equal(
+                    ether(1).mul(rate)
+                );
             });
 
-            await increaseTimeTo(latestTime() + duration.days(21));
-            await felixPool.finalizePool(token.address);
+            it('transfers wei investment back to the investor', async () => {
+                const investorWeiBalance = web3.eth.getBalance(investor1);
+                await felixPool.invest({ from: investor1, value: ether(5) });
 
-            const { logs } = await vault.refund(investor1, {
-                from: investor1
+                await increaseTimeTo(latestTime() + duration.days(21));
+                await felixPool.finalizePool(
+                    token.address,
+                    start,
+                    cliff,
+                    length
+                );
+
+                await felixPool.claimRefund({ from: investor1 });
+
+                const investorWeiBalancePostInteraction = web3.eth.getBalance(
+                    investor1
+                );
+
+                investorWeiBalancePostInteraction
+                    .toNumber()
+                    .should.be.closeTo(investorWeiBalance.toNumber(), 1e17);
             });
 
-            const event = logs.find(e => e.event == 'Refunded');
-            expect(event).to.exist;
+            it('emits Refunded event', async () => {
+                await felixPool.invest({
+                    from: investor1,
+                    value: ether(1)
+                });
 
-            const { args } = logs[0];
-            const { beneficiary, weiAmount } = args;
+                await increaseTimeTo(latestTime() + duration.days(21));
+                await felixPool.finalizePool(
+                    token.address,
+                    start,
+                    cliff,
+                    length
+                );
 
-            beneficiary.should.be.equal(investor1);
-            weiAmount.should.be.bignumber.equal(ether(1));
-        });
-    });
-
-    describe('#finalizePool', () => {
-        let token;
-        const totalTokensForPool = threshold.mul(rate);
-
-        beforeEach(async () => {
-            token = await TokenMock.new(felixPool.address, totalTokensForPool);
-        });
-
-        it('requires admin to set token address', async () => {
-            await felixPool.invest({
-                from: investor1,
-                value: threshold
-            });
-
-            await increaseTimeTo(latestTime() + duration.days(21));
-
-            try {
-                await felixPool.finalizePool(token.address, {
+                const { logs } = await vault.refund(investor1, {
                     from: investor1
                 });
-                assert.fail();
-            } catch (e) {
-                ensuresException(e);
-            }
 
-            const tokenAddressConfirmed = await felixPool.tokenAddressConfirmed();
-            tokenAddressConfirmed.should.be.false;
+                const event = logs.find(e => e.event == 'Refunded');
+                expect(event).to.exist;
+
+                const { args } = logs[0];
+                const { beneficiary, weiAmount } = args;
+
+                beneficiary.should.be.equal(investor1);
+                weiAmount.should.be.bignumber.equal(ether(1));
+            });
         });
 
-        it('requires pool to have finished', async () => {
-            await felixPool.invest({
-                from: investor1,
-                value: threshold
+        describe('#finalizePool', () => {
+            const totalTokensForPool = threshold.mul(rate);
+
+            beforeEach(async () => {
+                start = latestTime() + duration.days(22);
+                cliff = duration.years(1);
+                length = duration.years(2);
+                token = await TokenMock.new(
+                    felixPool.address,
+                    totalTokensForPool
+                );
             });
 
-            try {
-                await felixPool.finalizePool(token.address, {
-                    from: owner
+            it('requires admin to set token address', async () => {
+                await felixPool.invest({
+                    from: investor1,
+                    value: threshold
                 });
-                assert.fail();
-            } catch (e) {
-                ensuresException(e);
-            }
 
-            const tokenAddressConfirmed = await felixPool.tokenAddressConfirmed();
-            tokenAddressConfirmed.should.be.false;
-        });
+                await increaseTimeTo(latestTime() + duration.days(21));
 
-        it('requires equal or more tokens sent to pool contract', async () => {
-            // eRC20 tokens for tranferred to felixPool is lower than
-            // the totalTokens felixPool expects
-            await felixPool.invest({
-                from: investor1,
-                value: threshold.add(ether(1))
+                try {
+                    await felixPool.finalizePool(
+                        token.address,
+                        start,
+                        cliff,
+                        length,
+                        {
+                            from: investor1
+                        }
+                    );
+                    assert.fail();
+                } catch (e) {
+                    ensuresException(e);
+                }
+
+                const tokenContract = await felixPool.token();
+                tokenContract.should.be.equal(
+                    '0x0000000000000000000000000000000000000000'
+                );
             });
 
-            await increaseTimeTo(latestTime() + duration.days(21));
-            const test = await felixPool.totalTokens();
-            const test2 = await token.balanceOf(felixPool.address);
-
-            try {
-                await felixPool.finalizePool(token.address, {
-                    from: owner
+            it('requires pool to have finished', async () => {
+                await felixPool.invest({
+                    from: investor1,
+                    value: threshold
                 });
-                assert.fail();
-            } catch (e) {
-                ensuresException(e);
-            }
 
-            const tokenAddressConfirmed = await felixPool.tokenAddressConfirmed();
-            tokenAddressConfirmed.should.be.false;
-        });
+                try {
+                    await felixPool.finalizePool(
+                        token.address,
+                        start,
+                        cliff,
+                        length,
+                        {
+                            from: owner
+                        }
+                    );
+                    assert.fail();
+                } catch (e) {
+                    ensuresException(e);
+                }
 
-        it('sets ERC20 token to pool', async () => {
-            await felixPool.invest({
-                from: investor1,
-                value: threshold
+                const tokenContract = await felixPool.token();
+                tokenContract.should.be.equal(
+                    '0x0000000000000000000000000000000000000000'
+                );
             });
 
-            await increaseTimeTo(latestTime() + duration.days(21));
-
-            await felixPool.finalizePool(token.address, { from: owner });
-
-            const tokenAddressConfirmed = await felixPool.tokenAddressConfirmed();
-            tokenAddressConfirmed.should.be.true;
-
-            const erc20InPool = await felixPool.token();
-            erc20InPool.should.be.equal(token.address);
-        });
-
-        it('emits TokenConfirmed event', async () => {
-            await felixPool.invest({
-                from: investor1,
-                value: threshold
-            });
-            await increaseTimeTo(latestTime() + duration.days(21));
-
-            const { logs } = await felixPool.finalizePool(token.address, {
-                from: owner
-            });
-
-            const event = logs.find(e => e.event == 'TokenConfirmed');
-            expect(event).to.exist;
-
-            const { args } = logs[0];
-            const { tokenAddress } = args;
-
-            tokenAddress.should.be.equal(token.address);
-        });
-    });
-
-    describe('#setTokenClaimPercentage', () => {
-        it('DOES NOT allow a non-admin to set token claim percentage', async () => {
-            try {
-                await felixPool.setTokenClaimPercentage(30, {
-                    from: investor3
+            it('requires equal or more tokens sent to pool contract', async () => {
+                // eRC20 tokens for tranferred to felixPool is lower than
+                // the totalTokens felixPool expects
+                await felixPool.invest({
+                    from: investor1,
+                    value: threshold.add(ether(1))
                 });
-                assert.fail();
-            } catch (e) {
-                ensuresException(e);
-            }
 
-            const percentageOfTokensAllowedToClaim = await felixPool.percentageOfTokensAllowedToClaim();
-            // it is the default 100 percent
-            percentageOfTokensAllowedToClaim.should.be.bignumber.equal(100);
-        });
+                await increaseTimeTo(latestTime() + duration.days(21));
 
-        it('allows admin to set token claim percentage', async () => {
-            await felixPool.setTokenClaimPercentage(30, { from: owner });
+                try {
+                    await felixPool.finalizePool(
+                        token.address,
+                        start,
+                        cliff,
+                        length,
+                        {
+                            from: owner
+                        }
+                    );
+                    assert.fail();
+                } catch (e) {
+                    ensuresException(e);
+                }
 
-            const percentageOfTokensAllowedToClaim = await felixPool.percentageOfTokensAllowedToClaim();
-            percentageOfTokensAllowedToClaim.should.be.bignumber.equal(30);
-        });
-    });
-
-    describe('#claimEntitledTokens', () => {
-        let token;
-        const totalTokensForPool = threshold.mul(rate);
-
-        beforeEach(async () => {
-            token = await TokenMock.new(felixPool.address, totalTokensForPool);
-
-            await felixPool.invest({
-                from: investor3,
-                value: threshold
+                const tokenContract = await felixPool.token();
+                tokenContract.should.be.equal(
+                    '0x0000000000000000000000000000000000000000'
+                );
             });
 
-            await increaseTimeTo(latestTime() + duration.days(21));
-        });
-
-        it('cannot claim when ERC20 tokens are not set', async () => {
-            try {
-                await felixPool.claimEntitledTokens({
-                    from: investor3
+            it('sets ERC20 token to pool', async () => {
+                await felixPool.invest({
+                    from: investor1,
+                    value: threshold
                 });
-                assert.fail();
-            } catch (e) {
-                ensuresException(e);
-            }
 
-            const investorTokenEntitlements = await felixPool.tokenEntitlements.call(
-                investor3
-            );
+                await increaseTimeTo(latestTime() + duration.days(21));
 
-            investorTokenEntitlements.should.be.bignumber.equal(
-                threshold.mul(rate)
-            );
+                await felixPool.finalizePool(
+                    token.address,
+                    start,
+                    cliff,
+                    length,
+                    {
+                        from: owner
+                    }
+                );
 
-            const investorTokenBalance = await token.balanceOf(investor3);
-            investorTokenBalance.should.be.bignumber.equal(0);
+                const startContract = await felixPool.start();
+                startContract.should.be.bignumber.equal(start);
+
+                const cliffContract = await felixPool.cliff();
+                cliffContract.toNumber().should.be.equal(cliff + start);
+
+                const durationContract = await felixPool.duration();
+                durationContract.should.be.bignumber.equal(length);
+
+                const erc20InPool = await felixPool.token();
+                erc20InPool.should.be.equal(token.address);
+            });
         });
 
-        it('cannot claim ERC20 token when investor has not invested in the pool', async () => {
-            await felixPool.finalizePool(token.address, { from: owner });
+        describe('#release', () => {
+            const totalTokensForPool = threshold.mul(rate);
 
-            try {
-                await felixPool.claimEntitledTokens({
-                    from: investor2
+            beforeEach(async () => {
+                start = latestTime() + duration.days(22);
+                cliff = duration.years(1);
+                length = duration.years(2);
+                token = await TokenMock.new(
+                    felixPool.address,
+                    totalTokensForPool
+                );
+
+                await felixPool.invest({
+                    from: beneficiary,
+                    value: threshold
                 });
-                assert.fail();
-            } catch (e) {
-                ensuresException(e);
-            }
 
-            const investor2TokenEntitlements = await felixPool.tokenEntitlements.call(
-                investor2
-            );
-            investor2TokenEntitlements.should.be.bignumber.equal(0);
+                await increaseTimeTo(latestTime() + duration.days(21));
 
-            const investor2TokenBalance = await token.balanceOf(investor2);
-            investor2TokenBalance.should.be.bignumber.equal(0);
-        });
-
-        it('claims ERC20 tokens for investor', async () => {
-            await felixPool.finalizePool(token.address, { from: owner });
-
-            await felixPool.claimEntitledTokens({
-                from: investor3
+                await felixPool.finalizePool(
+                    token.address,
+                    start,
+                    cliff,
+                    length,
+                    {
+                        from: owner
+                    }
+                );
             });
 
-            let investorTokenEntitlements = await felixPool.tokenEntitlements.call(
-                investor3
-            );
-            // tokens entitlement is zero because investor has already remmoved them
-            investorTokenEntitlements.should.be.bignumber.equal(0);
+            it('cannot be released before cliff', async () => {
+                try {
+                    await felixPool.release({ from: beneficiary });
+                    assert.fail();
+                } catch (e) {
+                    ensuresException(e);
+                }
+            });
 
-            let investorTokenBalance = await token.balanceOf(investor3);
-            investorTokenBalance.should.be.bignumber.equal(threshold.mul(rate));
+            it('can be released after cliff', async () => {
+                await increaseTimeTo(start + cliff + duration.weeks(1));
+                await felixPool.release({ from: beneficiary }).should.be
+                    .fulfilled;
+            });
 
-            try {
-                // can only claim once
-                await felixPool.claimEntitledTokens({
-                    from: investor3
+            it('should release proper amount after cliff', async () => {
+                await increaseTimeTo(start + cliff);
+
+                const { receipt } = await felixPool.release({
+                    from: beneficiary
                 });
-                assert.fail();
-            } catch (e) {
-                ensuresException(e);
-            }
+                const releaseTime = web3.eth.getBlock(receipt.blockNumber)
+                    .timestamp;
 
-            investorTokenEntitlements = await felixPool.tokenEntitlements.call(
-                investor3
-            );
-            // tokens entitlement is zero because investor has already remmoved them
-            investorTokenEntitlements.should.be.bignumber.equal(0);
-
-            investorTokenBalance = await token.balanceOf(investor3);
-            investorTokenBalance.should.be.bignumber.equal(threshold.mul(rate));
-        });
-
-        it('claims partial tokens to investor', async () => {
-            await felixPool.finalizePool(token.address, { from: owner });
-
-            await felixPool.setTokenClaimPercentage(30);
-
-            const investorTokenEntitlements = await felixPool.tokenEntitlements.call(
-                investor3
-            );
-
-            await felixPool.claimEntitledTokens({
-                from: investor3
+                const balance = await token.balanceOf(beneficiary);
+                balance.should.bignumber.equal(
+                    totalTokensForPool
+                        .mul(releaseTime - start)
+                        .div(length)
+                        .floor()
+                );
             });
 
-            const thirtyPercent = investorTokenEntitlements.mul(30).div(100);
+            it('cannot release token twice for the same time period', async () => {
+                await increaseTimeTo(start + cliff);
 
-            const postClaimInvestorTokenEntitlements = await felixPool.tokenEntitlements.call(
-                investor3
-            );
-            postClaimInvestorTokenEntitlements.should.be.bignumber.equal(
-                investorTokenEntitlements.sub(thirtyPercent)
-            );
+                const { receipt } = await felixPool.release({
+                    from: beneficiary
+                });
+                const releaseTime = web3.eth.getBlock(receipt.blockNumber)
+                    .timestamp;
 
-            investorTokenBalance = await token.balanceOf(investor3);
-            investorTokenBalance.should.be.bignumber.equal(thirtyPercent);
-        });
+                let balance = await token.balanceOf(beneficiary);
+                balance.should.bignumber.equal(
+                    totalTokensForPool
+                        .mul(releaseTime - start)
+                        .div(length)
+                        .floor()
+                );
 
-        it('claims partial tokens to investor', async () => {
-            await felixPool.finalizePool(token.address, { from: owner });
+                // attempt another claim right after first one. All in all token balance must be the same
+                try {
+                    await felixPool.release({ from: beneficiary });
+                    assert.fail();
+                } catch (e) {
+                    ensuresException(e);
+                }
 
-            await felixPool.setTokenClaimPercentage(60);
-
-            const investorTokenEntitlements = await felixPool.tokenEntitlements.call(
-                investor3
-            );
-
-            await felixPool.claimEntitledTokens({
-                from: investor3
+                balance = await token.balanceOf(beneficiary);
+                balance.should.bignumber.equal(
+                    totalTokensForPool
+                        .mul(releaseTime - start)
+                        .div(length)
+                        .floor()
+                );
             });
 
-            const sixtyPercent = investorTokenEntitlements.mul(60).div(100);
+            it('should linearly release tokens during vesting period', async () => {
+                const vestingPeriod = length - cliff;
+                const checkpoints = 4;
 
-            const postClaimInvestorTokenEntitlements = await felixPool.tokenEntitlements.call(
-                investor3
-            );
-            postClaimInvestorTokenEntitlements.should.be.bignumber.equal(
-                investorTokenEntitlements.sub(sixtyPercent)
-            );
+                for (let i = 1; i <= checkpoints; i++) {
+                    const now =
+                        start + cliff + i * (vestingPeriod / checkpoints);
+                    await increaseTimeTo(now);
 
-            investorTokenBalance = await token.balanceOf(investor3);
-            investorTokenBalance.should.be.bignumber.equal(sixtyPercent);
-        });
+                    await felixPool.release({ from: beneficiary });
+                    const balance = await token.balanceOf(beneficiary);
+                    const expectedVesting = totalTokensForPool
+                        .mul(now - start)
+                        .div(length)
+                        .floor();
 
-        it('emits TokensClaimed event', async () => {
-            await felixPool.finalizePool(token.address, { from: owner });
-
-            const { logs } = await felixPool.claimEntitledTokens({
-                from: investor3
+                    balance
+                        .toNumber()
+                        .should.be.closeTo(expectedVesting.toNumber(), 1e16);
+                }
             });
 
-            const event = logs.find(e => e.event == 'TokensClaimed');
-            expect(event).to.exist;
-
-            const { args } = logs[0];
-            const { investor, claimed } = args;
-
-            investor.should.be.equal(investor3);
-            claimed.should.be.bignumber.equal(threshold.mul(rate));
+            it('should have released all after end', async () => {
+                await increaseTimeTo(start + length);
+                await felixPool.release({ from: beneficiary });
+                const balance = await token.balanceOf(beneficiary);
+                balance.should.bignumber.equal(totalTokensForPool);
+            });
         });
-    });
-});
+    }
+);
