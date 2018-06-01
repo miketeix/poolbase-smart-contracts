@@ -43,9 +43,7 @@ contract FelixPool {
         uint256 _endTime,
         uint256 _rate,
         address wallet
-    )
-        public
-    {
+    ) public {
         admin = msg.sender;
         require(_threshold != 0 && _rate != 0 && _cap != 0 && wallet != address(0));
         require(now < _endTime);
