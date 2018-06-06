@@ -1,5 +1,7 @@
 pragma solidity 0.4.23;
 
+import "./PoolbaseEventEmitter.sol";
+
 /* There is no minimum contribution for the total amount of eth collected
 There is a 0.4% as default contribution to Poolbase - add a function setPoolbaseFee
 
@@ -26,6 +28,7 @@ confirm function
 emergency token function. Send tokens back to the ICO team in case there is a mistake.
 Should be called by the superAdmin address owned by Poolbase. */
 
+
 contract Poolbase {
     // global variables
     address public masterAdmin;
@@ -40,6 +43,9 @@ contract Poolbase {
     mapping(address => bool) public superAdmins;
     mapping(address => bool) public admins;
 
+    /* External Contract */
+    PoolbaseEventEmitter public eventEmitter;
+
     /*
      * @dev Constructor function of Poolbase contract
      * @param _superAdmins List of super admin addresses. They belong to Poolbase.io
@@ -48,6 +54,7 @@ contract Poolbase {
      * @param _maxContributionPerInvestor Maximum amount each investor is allowed
      * @param _adminPoolFee Percentage from the pool that goes to master admin pool
      * @param _isAdminFeeInWei Check on whether master admin pool fee is paid out in Ether.
+     * @param _eventEmitterContract Address of event emitter contract
      * If not then it is paid out in ERC20 tokens
      * @param _admins List of pool admin addresses.
      */
@@ -58,6 +65,7 @@ contract Poolbase {
         uint256 _maxContributionPerInvestor,
         uint256 _adminPoolFee,
         bool _isAdminFeeInWei,
+        address _eventEmitterContract,
         address[] _admins
     ) public {
         masterAdmin = msg.sender;
@@ -66,6 +74,7 @@ contract Poolbase {
         maxContributionPerInvestor = _maxContributionPerInvestor;
         adminPoolFee = _adminPoolFee;
         isAdminFeeInWei = _isAdminFeeInWei;
+        eventEmitter = PoolbaseEventEmitter(_eventEmitterContract);
 
         for (uint8 i = 0; i <= 2; i++) {
             superAdmins[_superAdmins[i]] = true;
