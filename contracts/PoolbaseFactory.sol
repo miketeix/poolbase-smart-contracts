@@ -52,25 +52,26 @@ contract PoolbaseFactory is Factory {
      */
 
     /* @dev Allows verified creation of pools.
-     * @param _superAdmins List of super admin addresses. They belong to Poolbase.io
-     * @param _maxAllocation Pool cap in wei
-     * @param _minContributionPerInvestor Minimum amount each investor is allowed
-     * @param _maxContributionPerInvestor Maximum amount each investor is allowed
-     * @param _adminPoolFee Percentage from the pool that goes to master admin pool
-     * @param _eventEmitterContract Address of event emitter contract
-     * @param _isAdminFeeInWei Check on whether master admin pool fee is paid out in Ether.
-     * If not then it is paid out in ERC20 tokens
-     * @param _admins List of pool admin addresses.
-     * @return Returns pool address.
-     */
+    * @param _superBouncers List of super admin previlege addresses. They belong to Poolbase.io
+    * @param _maxAllocation Pool cap in wei
+    * @param _adminPoolFee Percentage from the pool that goes to master admin pool
+    * @param _isAdminFeeInWei Check on whether master admin pool fee is paid out in Ether.
+    * @param _payoutwallet Address where funds collected will be sent to at the end
+    * @param _adminPayoutWallet Address where admin fees goes to
+    * @param _poolbasePayoutWallet Address where poolbase fees goes to
+    * @param _eventEmitterContract Address of event emitter contract
+    * If not then it is paid out in ERC20 tokens
+    * @param _admins List of pool admin addresses.
+    */
     function create
     (
-        address[] _superAdmins,
+        address[] _superBouncers,
         uint256 _maxAllocation,
-        uint256 _minContributionPerInvestor,
-        uint256 _maxContributionPerInvestor,
         uint256 _adminPoolFee,
         bool _isAdminFeeInWei,
+        address _payoutWallet,
+        address _adminPayoutWallet,
+        address _poolbasePayoutWallet,
         address _eventEmitterContract,
         address[] _admins
     )
@@ -78,12 +79,13 @@ contract PoolbaseFactory is Factory {
         returns (address pool)
     {
         pool = new Poolbase(
-            _superAdmins,
+            _superBouncers,
             _maxAllocation,
-            _minContributionPerInvestor,
-            _maxContributionPerInvestor,
             _adminPoolFee,
             _isAdminFeeInWei,
+            _payoutWallet,
+            _adminPayoutWallet,
+            _poolbasePayoutWallet,
             _eventEmitterContract,
             _admins
         );
