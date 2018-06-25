@@ -12,7 +12,8 @@ contract Poolbase is SignatureBouncer {
     string public constant ROLE_ADMIN = "admin";
 
     uint256 public maxAllocation;
-    uint256 public adminPoolFee;
+    uint256[2] public adminPoolFee;
+    uint256[2] public poolbaseFee;
     bool public isAdminFeeInWei;
     address public payoutWallet;
     address public adminPayoutWallet;
@@ -35,6 +36,7 @@ contract Poolbase is SignatureBouncer {
      * @param _superBouncers List of super admin previlege addresses. They belong to Poolbase.io
      * @param _maxAllocation Pool cap in wei
      * @param _adminPoolFee Percentage from the pool that goes to master admin pool
+     * @param _poolbaseFee Percentage from the pool that goes to Poolbase
      * @param _isAdminFeeInWei Check on whether master admin pool fee is paid out in Ether.
      * @param _payoutwallet Address where funds collected will be sent to at the end
      * @param _adminPayoutWallet Address where admin fees goes to
@@ -46,7 +48,8 @@ contract Poolbase is SignatureBouncer {
     constructor(
         address[] _superBouncers,
         uint256 _maxAllocation,
-        uint256 _adminPoolFee,
+        uint256[2] _adminPoolFee,
+        uint256[2] _poolbaseFee,
         bool _isAdminFeeInWei,
         address _payoutWallet,
         address _adminPayoutWallet,
@@ -59,6 +62,7 @@ contract Poolbase is SignatureBouncer {
     {
         maxAllocation = _maxAllocation;
         adminPoolFee = _adminPoolFee;
+        poolbaseFee = _poolbaseFee;
         isAdminFeeInWei = _isAdminFeeInWei;
         payoutWallet = _payoutWallet;
         adminPayoutWallet = _adminPayoutWallet;
@@ -130,9 +134,16 @@ contract Poolbase is SignatureBouncer {
         adminPayoutWallet = _adminPayoutWallet;
     }
 
-    function setAdminPoolFee(uint256 _adminPoolFee) external onlyRole(ROLE_ADMIN) whenNotPaused {
-        require(_adminPoolFee != 0);
-        adminPoolFee = _adminPoolFee;
+    function setAdminPoolFee(uint256[2] _adminPoolFee) external onlyRole(ROLE_ADMIN) whenNotPaused {
+        require(_adminPoolFee[0] != 0 && _adminPoolFee[1] != 0);
+        adminPoolFee[0] = _adminPoolFee[0];
+        adminPoolFee[1] = _adminPoolFee[1];
+    }
+
+    function setPoolbaseFee(uint256[2] _poolbaseFee) external onlyRole(ROLE_BOUNCER) whenNotPaused {
+        require(_poolbaseFee[0] != 0 && _poolbaseFee[1] != 0);
+        poolbaseFee[0] = _poolbaseFee[0];
+        poolbaseFee[1] = _poolbaseFee[1];
     }
 
     function changeMaxAllocation(uint256 _maxAllocation) external onlyRole(ROLE_ADMIN) whenNotPaused {
@@ -171,7 +182,10 @@ contract Poolbase is SignatureBouncer {
         require(token.balanceOf(this) != 0);
 
         if (!isAdminFeeInWei) {
-            uint256 adminReward = token.balanceOf(this).mul(adminPoolFee).div(100);
+            uint adminPoolFeeNumerator = adminPoolFee[0];
+            uint adminPoolFeeDenominator = adminPoolFee[1];
+            uint256 adminReward = address(this).balance.mul(adminPoolFeeNumerator).div(adminPoolFeeDenominator);
+
             token.transfer(adminPayoutWallet, adminReward);
         }
 
@@ -220,11 +234,14 @@ contract Poolbase is SignatureBouncer {
         state = State.Closed;
         eventEmitter.logClosedEvent(address(this));
 
-        // 0.4% = 2/5 / 100
-        uint256 poolBaseReward = address(this).balance.mul(2).div(5).div(100);
+        uint poolbaseNumerator = poolbaseFee[0];
+        uint poolbaseDenominator = poolbaseFee[1];
+        uint256 poolBaseReward = address(this).balance.mul(poolbaseNumerator).div(poolbaseDenominator);
 
         if (isAdminFeeInWei) {
-            uint256 adminReward = address(this).balance.mul(adminPoolFee).div(100);
+            uint adminPoolFeeNumerator = adminPoolFee[0];
+            uint adminPoolFeeDenominator = adminPoolFee[1];
+            uint256 adminReward = address(this).balance.mul(adminPoolFeeNumerator).div(adminPoolFeeDenominator);
             adminPayoutWallet.transfer(adminReward);
         }
 

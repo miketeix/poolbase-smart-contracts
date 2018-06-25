@@ -55,6 +55,7 @@ contract PoolbaseFactory is Factory {
     * @param _superBouncers List of super admin previlege addresses. They belong to Poolbase.io
     * @param _maxAllocation Pool cap in wei
     * @param _adminPoolFee Percentage from the pool that goes to master admin pool
+    * @param _poolbaseFee Percentage from the pool that goes to Poolbase
     * @param _isAdminFeeInWei Check on whether master admin pool fee is paid out in Ether.
     * @param _payoutwallet Address where funds collected will be sent to at the end
     * @param _adminPayoutWallet Address where admin fees goes to
@@ -67,7 +68,8 @@ contract PoolbaseFactory is Factory {
     (
         address[] _superBouncers,
         uint256 _maxAllocation,
-        uint256 _adminPoolFee,
+        uint256[2] _adminPoolFee,
+        uint256[2] _poolbaseFee,
         bool _isAdminFeeInWei,
         address _payoutWallet,
         address _adminPayoutWallet,
@@ -82,6 +84,7 @@ contract PoolbaseFactory is Factory {
             _superBouncers,
             _maxAllocation,
             _adminPoolFee,
+            _poolbaseFee,
             _isAdminFeeInWei,
             _payoutWallet,
             _adminPayoutWallet,
