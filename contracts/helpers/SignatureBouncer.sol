@@ -27,7 +27,7 @@ contract SignatureBouncer is RBAC {
     string public constant ROLE_BOUNCER = "bouncer";
 
     constructor(address[] _bouncers) public {
-        for (uint8 i = 0; i <= _bouncers.length; i++) {
+        for (uint8 i = 0; i < _bouncers.length; i++) {
             addRole(_bouncers[i], ROLE_BOUNCER);
         }
     }
