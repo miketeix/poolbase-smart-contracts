@@ -171,6 +171,7 @@ contract Poolbase is SignatureBouncer {
     function enableRefunds() public onlyRole(ROLE_ADMIN) whenNotPaused {
         require(state == State.Active);
         state = State.Refunding;
+
         eventEmitter.logRefundsEnabledEvent(address(this));
     }
 
@@ -201,6 +202,7 @@ contract Poolbase is SignatureBouncer {
         uint256 depositedValue = deposited[investor];
         deposited[investor] = 0;
         investor.transfer(depositedValue);
+
         eventEmitter.logRefundedEvent(address(this), investor, depositedValue);
     }
 
@@ -221,6 +223,7 @@ contract Poolbase is SignatureBouncer {
 
         tokenClaimed[investor][_token] = tokenClaimed[investor][_token].add(value);
         token.transfer(investor, value);
+
         eventEmitter.logTokenClaimedEvent(address(this), investor, value, token);
     }
 
@@ -232,6 +235,7 @@ contract Poolbase is SignatureBouncer {
 
     function close() internal {
         state = State.Closed;
+
         eventEmitter.logClosedEvent(address(this));
 
         uint poolbaseNumerator = poolbaseFee[0];
