@@ -273,7 +273,6 @@ contract Poolbase is SignatureBouncer {
             }
         }
         totalClaimableTokens = totalClaimableTokens.sub(tokenClaimed[msg.sender]);
-
         allTokensClaimedByInvestors = allTokensClaimedByInvestors.add(totalClaimableTokens);
         tokenClaimed[msg.sender] = tokenClaimed[msg.sender].add(totalClaimableTokens);
 
