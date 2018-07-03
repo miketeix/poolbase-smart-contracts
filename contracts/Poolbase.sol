@@ -216,6 +216,7 @@ contract Poolbase is SignatureBouncer {
     function enableRefunds() external onlyRole(ROLE_ADMIN) whenNotPaused {
         require(state == State.Active);
         state = State.Refunding;
+
         eventEmitter.logRefundsEnabledEvent(address(this));
     }
 
@@ -287,6 +288,7 @@ contract Poolbase is SignatureBouncer {
 
     function close() internal {
         state = State.Closed;
+
         eventEmitter.logClosedEvent(address(this));
 
         uint poolbaseNumerator = poolbaseFee[0];
