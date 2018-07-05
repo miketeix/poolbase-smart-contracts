@@ -12,6 +12,7 @@ contract Poolbase is SignatureBouncer {
     string public constant ROLE_ADMIN = "admin";
 
     uint256 public maxAllocation;
+    uint256 public totalWeiRaised;
     uint256[2] public adminPoolFee;
     uint256[2] public poolbaseFee;
     bool public isAdminFeeInWei;
@@ -20,13 +21,23 @@ contract Poolbase is SignatureBouncer {
     address public poolbasePayoutWallet;
 
     bool public paused = false;
+    ERC20 public token;
 
     /* State vars */
     enum State { Active, Refunding, Closed, TokenPayout }
     State public state;
 
+    struct Batch {
+        uint256 rate;
+        uint256 totalTokens;
+    }
+
+    uint256 public numOfBatches;
+    uint256 public allTokensClaimedByInvestors;
+
     mapping (address => uint256) public deposited;
-    mapping (address => mapping (address => uint256)) public tokenClaimed;
+    mapping (address => uint256) public tokenClaimed;
+    mapping (uint256 => Batch) public batches;
 
     /* External Contract */
     PoolbaseEventEmitter public eventEmitter;
@@ -154,80 +165,89 @@ contract Poolbase is SignatureBouncer {
     /*
      * Investing Mechanisms
      */
-     /**
-      * @param investor Investor address
-      * @param sig poolbase signature
-      */
-    function deposit(address investor, bytes sig) public onlyValidSignature(sig) whenNotPaused payable {
+    /**
+     * @param sig poolbase signature
+     */
+    function deposit(bytes sig) external onlyValidSignature(sig) whenNotPaused payable {
         require(state == State.Active);
         require(address(this).balance.add(msg.value) <= maxAllocation);
-        deposited[investor] = deposited[investor].add(msg.value);
+        deposited[msg.sender] = deposited[msg.sender].add(msg.value);
 
         if (address(this).balance.add(msg.value) == maxAllocation) {
             close();
         }
     }
 
-    function enableRefunds() public onlyRole(ROLE_ADMIN) whenNotPaused {
+    function enableRefunds() external onlyRole(ROLE_ADMIN) whenNotPaused {
         require(state == State.Active);
         state = State.Refunding;
         eventEmitter.logRefundsEnabledEvent(address(this));
     }
 
-    function adminEnablesTokenPayout(ERC20 _token) public onlyRole(ROLE_ADMIN) whenNotPaused {
-        require(state == State.Closed);
+    function adminSetsBatch(ERC20 _token) external onlyRole(ROLE_ADMIN) whenNotPaused {
+        require(state == State.Closed || state == State.TokenPayout);
         state = State.TokenPayout;
 
-        ERC20 token = ERC20(_token);
+        token = ERC20(_token);
         require(token.balanceOf(this) != 0);
 
-        if (!isAdminFeeInWei) {
-            uint adminPoolFeeNumerator = adminPoolFee[0];
-            uint adminPoolFeeDenominator = adminPoolFee[1];
-            uint256 adminReward = address(this).balance.mul(adminPoolFeeNumerator).div(adminPoolFeeDenominator);
+        uint256 totalTokensFromAllPreviousBatches;
 
-            token.transfer(adminPayoutWallet, adminReward);
+        if (numOfBatches > 0) {
+            for (uint8 i = 0; i < numOfBatches; i++) {
+                totalTokensFromAllPreviousBatches = totalTokensFromAllPreviousBatches.add(batches[i].totalTokens);
+            }
         }
 
+        uint256 currentTokensInContract = token.balanceOf(this);
+
+        batches[numOfBatches].totalTokens = currentTokensInContract
+                                            .add(allTokensClaimedByInvestors)
+                                            .sub(totalTokensFromAllPreviousBatches);
+
+        batches[numOfBatches].rate = batches[numOfBatches].totalTokens / totalWeiRaised;
+
         eventEmitter.logTokenPayoutEnabledEvent(address(this));
+        numOfBatches = numOfBatches.add(1);
     }
 
      /**
-      * @param investor Investor address
       * @param sig poolbase signature
       */
-    function refund(address investor, bytes sig) public onlyValidSignature(sig) whenNotPaused {
+    function refund(bytes sig) external onlyValidSignature(sig) whenNotPaused {
         require(state == State.Active || state == State.Refunding);
-        uint256 depositedValue = deposited[investor];
-        deposited[investor] = 0;
-        investor.transfer(depositedValue);
-        eventEmitter.logRefundedEvent(address(this), investor, depositedValue);
+        uint256 depositedValue = deposited[msg.sender];
+        deposited[msg.sender] = 0;
+        msg.sender.transfer(depositedValue);
+        eventEmitter.logRefundedEvent(address(this), msg.sender, depositedValue);
     }
 
-    function claimToken
-    (
-        address investor,
-        uint256 value,
-        ERC20 _token,
-        bytes sig
-    )
-        public
+    function claimToken(bytes sig)
+        external
         onlyValidSignature(sig)
         whenNotPaused
     {
         require(state == State.TokenPayout);
-        ERC20 token = ERC20(_token);
-        require(token.balanceOf(this) != 0);
+        require(deposited[msg.sender] != 0);
 
-        tokenClaimed[investor][_token] = tokenClaimed[investor][_token].add(value);
-        token.transfer(investor, value);
-        eventEmitter.logTokenClaimedEvent(address(this), investor, value, token);
+        uint256 totalClaimableTokens;
+        if (numOfBatches > 0) {
+            for (uint8 i = 0; i < numOfBatches; i++) {
+                totalClaimableTokens = totalClaimableTokens.add(batches[i].rate.mul(deposited[msg.sender]));
+            }
+        }
+        totalClaimableTokens = totalClaimableTokens.sub(tokenClaimed[msg.sender]);
+
+        allTokensClaimedByInvestors = allTokensClaimedByInvestors.add(totalClaimableTokens);
+        tokenClaimed[msg.sender] = tokenClaimed[msg.sender].add(totalClaimableTokens);
+
+        token.transfer(msg.sender, totalClaimableTokens);
+        eventEmitter.logTokenClaimedEvent(address(this), msg.sender, totalClaimableTokens, token);
     }
 
-    function adminClosesPool() public onlyRole(ROLE_ADMIN) whenNotPaused {
+    function adminClosesPool() external onlyRole(ROLE_ADMIN) whenNotPaused {
         require(state == State.Active);
         close();
-
     }
 
     function close() internal {
@@ -237,15 +257,21 @@ contract Poolbase is SignatureBouncer {
         uint poolbaseNumerator = poolbaseFee[0];
         uint poolbaseDenominator = poolbaseFee[1];
         uint256 poolBaseReward = address(this).balance.mul(poolbaseNumerator).div(poolbaseDenominator);
+        poolbasePayoutWallet.transfer(poolBaseReward);
+
+        uint adminPoolFeeNumerator = adminPoolFee[0];
+        uint adminPoolFeeDenominator = adminPoolFee[1];
+        uint256 adminReward = address(this).balance.mul(adminPoolFeeNumerator).div(adminPoolFeeDenominator);
 
         if (isAdminFeeInWei) {
-            uint adminPoolFeeNumerator = adminPoolFee[0];
-            uint adminPoolFeeDenominator = adminPoolFee[1];
-            uint256 adminReward = address(this).balance.mul(adminPoolFeeNumerator).div(adminPoolFeeDenominator);
             adminPayoutWallet.transfer(adminReward);
+            totalWeiRaised = address(this).balance;
+            payoutWallet.transfer(totalWeiRaised);
+        } else {
+            // add adminPoolFee on top of the payout value
+            totalWeiRaised = address(this).balance.add(adminReward);
+            deposited[adminPayoutWallet] = deposited[adminPayoutWallet].add(adminReward);
+            payoutWallet.transfer(address(this).balance);
         }
-
-        poolbasePayoutWallet.transfer(poolBaseReward);
-        payoutWallet.transfer(address(this).balance);
     }
 }
