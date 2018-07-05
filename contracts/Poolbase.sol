@@ -20,7 +20,10 @@ contract Poolbase is SignatureBouncer {
     address public adminPayoutWallet;
     address public poolbasePayoutWallet;
 
-    bool public paused = false;
+    bool public poolbaseVouched;
+    bool public adminVouched;
+    bool public acceptAllPayments;
+    bool public paused;
     ERC20 public token;
 
     /* State vars */
@@ -106,6 +109,10 @@ contract Poolbase is SignatureBouncer {
         _;
     }
 
+    function () external payable {
+        require(acceptAllPayments);
+    }
+
     /**
      * @dev called by the owner to pause, triggers stopped state
      */
@@ -122,14 +129,42 @@ contract Poolbase is SignatureBouncer {
         eventEmitter.logUnpausedEvent(address(this));
     }
 
-    function emergencyRemoveWei(uint256 _value) external onlyRole(ROLE_BOUNCER) {
-        require(_value != 0);
-        poolbasePayoutWallet.transfer(_value);
+    function emergencySetStateToRefunding() external onlyRole(ROLE_BOUNCER) {
+        state = State.Refunding;
     }
 
-    function emergencyRemoveTokens(ERC20 _tokenAddress, uint256 _value) external onlyRole(ROLE_BOUNCER) {
-        require(_value != 0);
-        ERC20(_tokenAddress).transfer(poolbasePayoutWallet, _value);
+    function emergencyReceiveWeiFromPayoutAddress() external payable {
+        require(msg.sender == payoutWallet);
+    }
+
+    function emergencyAcceptAllPayment() external onlyRole(ROLE_BOUNCER) payable {
+        acceptAllPayments = true;
+    }
+
+    function vouchAsPoolBase() external onlyRole(ROLE_BOUNCER) {
+        poolbaseVouched = true;
+    }
+
+    function vouchAsAdmin() external onlyRole(ROLE_ADMIN) {
+        adminVouched = true;
+    }
+
+    function emergencyRemoveWei(address beneficiary, uint256 _value) external onlyRole(ROLE_ADMIN) {
+        require(_value != 0 && poolbaseVouched && adminVouched);
+        beneficiary.transfer(_value);
+    }
+
+    function emergencyRemoveTokens
+        (
+            ERC20 _tokenAddress,
+            address beneficiary,
+            uint256 _value
+        )
+            external
+            onlyRole(ROLE_ADMIN)
+    {
+        require(_value != 0 && poolbaseVouched && adminVouched);
+        ERC20(_tokenAddress).transfer(beneficiary, _value);
     }
 
     /*
