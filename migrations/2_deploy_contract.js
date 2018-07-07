@@ -26,11 +26,9 @@ module.exports = async function(
     const factoryInstance = PoolbaseFactory.at(PoolbaseFactory.address);
     const params = [...Object.values(poolParams)];
 
-    const receipt = await factoryInstance.create(...params, {
+    await factoryInstance.create(...params, {
         from: coinbaseAccount
     });
-    const receiptPoolAddress = receipt.logs[0].address;
-    console.log('receiptPoolAddress', receiptPoolAddress);
 
     const poolAddress = await factoryInstance.instantiations.call(
         coinbaseAccount,
