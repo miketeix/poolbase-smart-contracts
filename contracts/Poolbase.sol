@@ -114,7 +114,7 @@ contract Poolbase is SignatureBouncer {
     }
 
     /**
-     * @dev called by the owner to pause, triggers stopped state
+     * @dev called by the bouncer to pause, triggers stopped state
      */
     function pause() external onlyRole(ROLE_BOUNCER) whenNotPaused {
         paused = true;
@@ -122,7 +122,7 @@ contract Poolbase is SignatureBouncer {
     }
 
     /**
-     * @dev called by the owner to unpause, returns to normal state
+     * @dev called by the bouncer to unpause, returns to normal state
      */
     function unpause() external onlyRole(ROLE_BOUNCER) whenPaused {
         paused = false;
