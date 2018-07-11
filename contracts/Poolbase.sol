@@ -208,6 +208,7 @@ contract Poolbase is SignatureBouncer {
         require(address(this).balance.add(msg.value) <= maxAllocation);
         deposited[msg.sender] = deposited[msg.sender].add(msg.value);
 
+        eventEmitter.logContributionEvent(address(this), msg.sender, msg.value);
         if (address(this).balance.add(msg.value) == maxAllocation) {
             close();
         }

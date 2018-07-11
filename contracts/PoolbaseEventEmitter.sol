@@ -2,52 +2,51 @@ pragma solidity 0.4.23;
 
 
 contract PoolbaseEventEmitter {
-    event ContributionMade(address contractAddress, address investor, address pool, uint256 contribution);
-    event Closed(address contractAddress);
-    event RefundsEnabled(address contractAddress);
-    event TokenPayoutsEnabled(address contractAddress);
-    event Pause(address contractAddress);
-    event Unpause(address contractAddress);
-    event Refunded(address contractAddress, address indexed beneficiary, uint256 weiAmount);
-    event TokenClaimed(address contractAddress, address indexed beneficiary, uint256 amount, address token);
+    event ContributionMade(address poolContractAddress, address investor, uint256 contribution);
+    event Closed(address poolContractAddress);
+    event RefundsEnabled(address poolContractAddress);
+    event TokenPayoutsEnabled(address poolContractAddress);
+    event Pause(address poolContractAddress);
+    event Unpause(address poolContractAddress);
+    event Refunded(address poolContractAddress, address indexed beneficiary, uint256 weiAmount);
+    event TokenClaimed(address poolContractAddress, address indexed beneficiary, uint256 amount, address token);
 
     function logContributionEvent
     (
-        address contractAddress,
+        address poolContractAddress,
         address _investor,
-        address _pool,
         uint256 _contribution
     )
         public
     {
-        emit ContributionMade(contractAddress, _investor, _pool, _contribution);
+        emit ContributionMade(poolContractAddress, _investor, _contribution);
     }
 
-    function logClosedEvent(address contractAddress) public {
-        emit Closed(contractAddress);
+    function logClosedEvent(address poolContractAddress) public {
+        emit Closed(poolContractAddress);
     }
 
-    function logRefundsEnabledEvent(address contractAddress) public {
-        emit RefundsEnabled(contractAddress);
+    function logRefundsEnabledEvent(address poolContractAddress) public {
+        emit RefundsEnabled(poolContractAddress);
     }
 
-    function logTokenPayoutEnabledEvent(address contractAddress) public {
-        emit TokenPayoutsEnabled(contractAddress);
+    function logTokenPayoutEnabledEvent(address poolContractAddress) public {
+        emit TokenPayoutsEnabled(poolContractAddress);
     }
 
-    function logPausedEvent(address contractAddress) public {
-        emit Pause(contractAddress);
+    function logPausedEvent(address poolContractAddress) public {
+        emit Pause(poolContractAddress);
     }
 
-    function logUnpausedEvent(address contractAddress) public {
-        emit Unpause(contractAddress);
+    function logUnpausedEvent(address poolContractAddress) public {
+        emit Unpause(poolContractAddress);
     }
 
-    function logRefundedEvent(address contractAddress, address _beneficiary, uint256 _weiAmount) public {
-        emit Refunded(contractAddress, _beneficiary, _weiAmount);
+    function logRefundedEvent(address poolContractAddress, address _beneficiary, uint256 _weiAmount) public {
+        emit Refunded(poolContractAddress, _beneficiary, _weiAmount);
     }
 
-    function logTokenClaimedEvent(address contractAddress, address _beneficiary, uint256 _amount, address _token) public {
-        emit TokenClaimed(contractAddress, _beneficiary, _amount, _token);
+    function logTokenClaimedEvent(address poolContractAddress, address _beneficiary, uint256 _amount, address _token) public {
+        emit TokenClaimed(poolContractAddress, _beneficiary, _amount, _token);
     }
 }
