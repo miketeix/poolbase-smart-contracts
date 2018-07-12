@@ -83,7 +83,9 @@ contract Poolbase is SignatureBouncer {
         poolbasePayoutWallet = _poolbasePayoutWallet;
         eventEmitter = PoolbaseEventEmitter(_eventEmitterContract);
 
+        addRole(msg.sender, ROLE_ADMIN); // add msg.sender as poolAdmin
         for (uint8 i = 0; i < _admins.length; i++) {
+            // add addresses within the array as pool admins
             addRole(_admins[i], ROLE_ADMIN);
         }
 

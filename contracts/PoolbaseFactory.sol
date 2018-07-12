@@ -1,9 +1,10 @@
 pragma solidity 0.4.23;
 
 import "./Poolbase.sol";
+import "./helpers/Ownable.sol";
+
 
 contract Factory {
-
     /*
      *  Events
      */
@@ -39,41 +40,71 @@ contract Factory {
     {
         isInstantiation[instantiation] = true;
         instantiations[msg.sender].push(instantiation);
+        
         emit ContractInstantiation(msg.sender, instantiation);
     }
 }
 
 
 /// @title Poobase factory - Allows creation of pools.
-contract PoolbaseFactory is Factory {
+contract PoolbaseFactory is Factory, Ownable {
+    address[] public superBouncers;
+    address public poolbasePayoutWallet;
+    uint256[2] public poolbaseFee;
 
     /*
-     * Public functions
+     * functions
      */
+     /**
+      * @dev Add super bouncers. Only two are allowed to exist at any time
+      * @param _superBouncers List of super bouncers that belong to poolbase.io
+      */
+    function setSuperBouncers(address[2] _superBouncers) external onlyOwner {
+        require(_superBouncers[0] != 0 && _superBouncers[1] != 0);
+        superBouncers[0] = _superBouncers[0];
+        superBouncers[1] = _superBouncers[1];
+    }
+
+    function setPoolbasePayoutWallet(address _poolbasePayoutWallet) external onlyOwner {
+        require(_poolbasePayoutWallet != 0);
+        poolbasePayoutWallet = _poolbasePayoutWallet;
+    }
+
+    function setPoolbaseFee(uint256[2] _poolbaseFee) external onlyOwner {
+        require(_poolbaseFee[0] != 0 && _poolbaseFee[1] != 0);
+        poolbaseFee[0] = _poolbaseFee[0];
+        poolbaseFee[1] = _poolbaseFee[1];
+    }
+
+    function getSuperBouncers() external view returns(address, address) {
+        return (superBouncers[0], superBouncers[1]);
+    }
+
+    function getPoolbasePayoutWallet() external view returns(address) {
+        return poolbasePayoutWallet;
+    }
+
+    function getPoolbaseFee() external view returns(uint256, uint256) {
+        return (poolbaseFee[0], poolbaseFee[1]);
+    }
 
     /* @dev Allows verified creation of pools.
-    * @param _superBouncers List of super admin previlege addresses. They belong to Poolbase.io
     * @param _maxAllocation Pool cap in wei
     * @param _adminPoolFee Percentage from the pool that goes to master admin pool
-    * @param _poolbaseFee Percentage from the pool that goes to Poolbase
     * @param _isAdminFeeInWei Check on whether master admin pool fee is paid out in Ether.
     * @param _payoutwallet Address where funds collected will be sent to at the end
     * @param _adminPayoutWallet Address where admin fees goes to
-    * @param _poolbasePayoutWallet Address where poolbase fees goes to
     * @param _eventEmitterContract Address of event emitter contract
     * If not then it is paid out in ERC20 tokens
     * @param _admins List of pool admin addresses.
     */
     function create
     (
-        address[] _superBouncers,
         uint256 _maxAllocation,
         uint256[2] _adminPoolFee,
-        uint256[2] _poolbaseFee,
         bool _isAdminFeeInWei,
         address _payoutWallet,
         address _adminPayoutWallet,
-        address _poolbasePayoutWallet,
         address _eventEmitterContract,
         address[] _admins
     )
@@ -81,14 +112,14 @@ contract PoolbaseFactory is Factory {
         returns (address pool)
     {
         pool = new Poolbase(
-            _superBouncers,
+            superBouncers,
             _maxAllocation,
             _adminPoolFee,
-            _poolbaseFee,
+            poolbaseFee,
             _isAdminFeeInWei,
             _payoutWallet,
             _adminPayoutWallet,
-            _poolbasePayoutWallet,
+            poolbasePayoutWallet,
             _eventEmitterContract,
             _admins
         );
