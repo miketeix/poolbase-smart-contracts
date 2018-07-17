@@ -18,10 +18,12 @@ module.exports = async function(
     writeAddressFile(PoolbaseEventEmitter, 'poolbaseEventEmitter');
 
     const factoryInstance = await PoolbaseFactory.at(PoolbaseFactory.address);
-    await factoryInstance.setSuperBouncers([coinbaseAccount, superBouncer], { from: coinbaseAccount });
+    await factoryInstance.setSuperBouncers([coinbaseAccount, superBouncer], {
+        from: coinbaseAccount
+    });
+
     // await factoryInstance.setPoolbasePayoutWallet(coinbaseAccount, { from: coinbaseAccount });
     // await factoryInstance.setPoolbaseFee([5, 1000], { from: coinbaseAccount });
-
 
     // const poolParams = {
     //     maxAllocation: 200e18,

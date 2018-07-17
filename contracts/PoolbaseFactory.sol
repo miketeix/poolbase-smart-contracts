@@ -40,7 +40,7 @@ contract Factory {
     {
         isInstantiation[instantiation] = true;
         instantiations[msg.sender].push(instantiation);
-        
+
         emit ContractInstantiation(msg.sender, instantiation);
     }
 }
@@ -60,20 +60,18 @@ contract PoolbaseFactory is Factory, Ownable {
       * @param _superBouncers List of super bouncers that belong to poolbase.io
       */
     function setSuperBouncers(address[2] _superBouncers) external onlyOwner {
-        require(_superBouncers[0] != 0 && _superBouncers[1] != 0);
-        superBouncers[0] = _superBouncers[0];
-        superBouncers[1] = _superBouncers[1];
+        require(_superBouncers[0] != address(0) && _superBouncers[1] != address(0));
+        superBouncers = _superBouncers;
     }
 
     function setPoolbasePayoutWallet(address _poolbasePayoutWallet) external onlyOwner {
-        require(_poolbasePayoutWallet != 0);
+        require(_poolbasePayoutWallet != address(0));
         poolbasePayoutWallet = _poolbasePayoutWallet;
     }
 
     function setPoolbaseFee(uint256[2] _poolbaseFee) external onlyOwner {
         require(_poolbaseFee[0] != 0 && _poolbaseFee[1] != 0);
-        poolbaseFee[0] = _poolbaseFee[0];
-        poolbaseFee[1] = _poolbaseFee[1];
+        poolbaseFee = _poolbaseFee;
     }
 
     function getSuperBouncers() external view returns(address, address) {
