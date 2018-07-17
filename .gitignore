@@ -1,5 +1,6 @@
 build
 node_modules
+addresses
 .DS_Store
 .specifications
 Pseudo.sol

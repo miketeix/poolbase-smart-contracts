@@ -9,7 +9,7 @@ const addressesPath = path.join(__dirname, '../addresses');
 module.exports = async function(
     deployer,
     network,
-    [coinbaseAccount, poolAdmin]
+    [coinbaseAccount, poolAdmin, superBouncer]
 ) {
     await deployer.deploy(PoolbaseFactory);
     await deployer.deploy(PoolbaseEventEmitter);
@@ -17,32 +17,33 @@ module.exports = async function(
     writeAddressFile(PoolbaseFactory, 'poolbaseFactory');
     writeAddressFile(PoolbaseEventEmitter, 'poolbaseEventEmitter');
 
-    const poolParams = {
-        superBouncers: [coinbaseAccount],
-        maxAllocation: 200e18,
-        adminPoolFee: [5, 1000],
-        poolbaseFee: [5, 1000],
-        isAdminFeeInWei: true,
-        payoutWallet: coinbaseAccount,
-        adminPayoutWallet: poolAdmin,
-        poolbasePayoutWallet: coinbaseAccount,
-        eventEmitterContract: PoolbaseEventEmitter.address,
-        admins: [poolAdmin]
-    };
+    const factoryInstance = await PoolbaseFactory.at(PoolbaseFactory.address);
+    await factoryInstance.setSuperBouncers([coinbaseAccount, superBouncer], { from: coinbaseAccount });
+    // await factoryInstance.setPoolbasePayoutWallet(coinbaseAccount, { from: coinbaseAccount });
+    // await factoryInstance.setPoolbaseFee([5, 1000], { from: coinbaseAccount });
 
-    const factoryInstance = PoolbaseFactory.at(PoolbaseFactory.address);
-    const params = [...Object.values(poolParams)];
 
-    await factoryInstance.create(...params, {
-        from: coinbaseAccount
-    });
-
-    const poolAddress = await factoryInstance.instantiations.call(
-        coinbaseAccount,
-        0
-    );
-
-    const poolInstance = PoolContract.at(poolAddress);
+    // const poolParams = {
+    //     maxAllocation: 200e18,
+    //     adminPoolFee: [5, 1000],
+    //     isAdminFeeInWei: true,
+    //     payoutWallet: coinbaseAccount,
+    //     adminPayoutWallet: poolAdmin,
+    //     eventEmitterContract: PoolbaseEventEmitter.address,
+    //     admins: [poolAdmin]
+    // };
+    // const params = [...Object.values(poolParams)];
+    //
+    // await factoryInstance.create(...params, {
+    //     from: coinbaseAccount
+    // });
+    //
+    // const poolAddress = await factoryInstance.instantiations.call(
+    //     coinbaseAccount,
+    //     0
+    // );
+    //
+    // const poolInstance = PoolContract.at(poolAddress);
 };
 
 const writeAddressFile = (contract, filename) => {
