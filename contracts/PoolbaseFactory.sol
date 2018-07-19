@@ -124,16 +124,12 @@ contract PoolbaseFactory is Factory, Ownable {
         );
 
         bytes32 hashMessage = keccak256(abi.encodePacked(
-            superBouncers,
-            _maxAllocation,
-            _adminPoolFee,
-            poolbaseFee,
-            _isAdminFeeInWei,
-            _payoutWallet,
-            _adminPayoutWallet,
-            poolbasePayoutWallet,
-            _eventEmitterContract,
-            _admins
+          _maxAllocation,
+          _adminPoolFee,
+          _isAdminFeeInWei,
+          _payoutWallet,
+          _adminPayoutWallet,
+          _admins
         ));
 
         register(pool, hashMessage);
