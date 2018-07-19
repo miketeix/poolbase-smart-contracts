@@ -8,7 +8,7 @@ contract Factory {
     /*
      *  Events
      */
-    event ContractInstantiation(address sender, address instantiation);
+    event ContractInstantiation(address sender, address instantiation, bytes32 hashMessage);
 
     /*
      *  Storage
@@ -35,13 +35,14 @@ contract Factory {
      */
     /// @dev Registers contract in factory registry.
     /// @param instantiation Address of contract instantiation.
-    function register(address instantiation)
+    /// @param hashMessage unique identifier for the pool
+    function register(address instantiation, bytes32 hashMessage)
         internal
     {
         isInstantiation[instantiation] = true;
         instantiations[msg.sender].push(instantiation);
 
-        emit ContractInstantiation(msg.sender, instantiation);
+        emit ContractInstantiation(msg.sender, instantiation, hashMessage);
     }
 }
 
@@ -52,13 +53,13 @@ contract PoolbaseFactory is Factory, Ownable {
     address public poolbasePayoutWallet;
     uint256[2] public poolbaseFee;
 
-    /*
-     * functions
+   /*
+    * functions
+    */
+   /**
+     * @dev Add super bouncers. Only two are allowed to exist at any time
+     * @param _superBouncers List of super bouncers that belong to poolbase.io
      */
-     /**
-      * @dev Add super bouncers. Only two are allowed to exist at any time
-      * @param _superBouncers List of super bouncers that belong to poolbase.io
-      */
     function setSuperBouncers(address[2] _superBouncers) external onlyOwner {
         require(_superBouncers[0] != address(0) && _superBouncers[1] != address(0));
         superBouncers = _superBouncers;
@@ -121,6 +122,20 @@ contract PoolbaseFactory is Factory, Ownable {
             _eventEmitterContract,
             _admins
         );
-        register(pool);
+
+        bytes32 hashMessage = keccak256(abi.encodePacked(
+            superBouncers,
+            _maxAllocation,
+            _adminPoolFee,
+            poolbaseFee,
+            _isAdminFeeInWei,
+            _payoutWallet,
+            _adminPayoutWallet,
+            poolbasePayoutWallet,
+            _eventEmitterContract,
+            _admins
+        ));
+
+        register(pool, hashMessage);
     }
 }
