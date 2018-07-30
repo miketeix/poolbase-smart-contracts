@@ -120,7 +120,7 @@ contract Poolbase is SignatureBouncer {
      */
     function pause() external onlyRole(ROLE_BOUNCER) whenNotPaused {
         paused = true;
-        eventEmitter.logPausedEvent(address(this));
+        eventEmitter.logPausedEvent(address(this), msg.sender);
     }
 
     /**
@@ -128,7 +128,7 @@ contract Poolbase is SignatureBouncer {
      */
     function unpause() external onlyRole(ROLE_BOUNCER) whenPaused {
         paused = false;
-        eventEmitter.logUnpausedEvent(address(this));
+        eventEmitter.logUnpausedEvent(address(this), msg.sender);
     }
 
     function emergencySetStateToRefunding() external onlyRole(ROLE_BOUNCER) {
@@ -220,7 +220,7 @@ contract Poolbase is SignatureBouncer {
         require(state == State.Active);
         state = State.Refunding;
 
-        eventEmitter.logRefundsEnabledEvent(address(this));
+        eventEmitter.logRefundsEnabledEvent(address(this), msg.sender);
     }
 
     function adminSetsBatch(ERC20 _token) external onlyRole(ROLE_ADMIN) whenNotPaused {
@@ -246,7 +246,7 @@ contract Poolbase is SignatureBouncer {
 
         batches[numOfBatches].rate = batches[numOfBatches].totalTokens / totalWeiRaised;
 
-        eventEmitter.logTokenPayoutEnabledEvent(address(this));
+        eventEmitter.logTokenPayoutEnabledEvent(address(this), msg.sender);
         numOfBatches = numOfBatches.add(1);
     }
 
@@ -291,7 +291,7 @@ contract Poolbase is SignatureBouncer {
     function close() internal {
         state = State.Closed;
 
-        eventEmitter.logClosedEvent(address(this));
+        eventEmitter.logClosedEvent(address(this), msg.sender);
 
         uint poolbaseNumerator = poolbaseFee[0];
         uint poolbaseDenominator = poolbaseFee[1];
