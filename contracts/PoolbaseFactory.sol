@@ -8,7 +8,7 @@ contract Factory {
     /*
      *  Events
      */
-    event ContractInstantiation(address sender, address instantiation, bytes32 hashMessage);
+    event ContractInstantiation(address msgSender, address instantiation, bytes32 hashMessage);
 
     /*
      *  Storage
@@ -124,12 +124,12 @@ contract PoolbaseFactory is Factory, Ownable {
         );
 
         bytes32 hashMessage = keccak256(abi.encodePacked(
-          _maxAllocation,
-          _adminPoolFee,
-          _isAdminFeeInWei,
-          _payoutWallet,
-          _adminPayoutWallet,
-          _admins
+            _maxAllocation,
+            _adminPoolFee,
+            _isAdminFeeInWei,
+            _payoutWallet,
+            _adminPayoutWallet,
+            _admins
         ));
 
         register(pool, hashMessage);
