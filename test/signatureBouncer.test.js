@@ -28,7 +28,7 @@ const stripAndPadHexValue = (hexVal, sizeInBytes, start = true) => {
         : strippedHexVal.padEnd(sizeInBytes * 2, 0);
 };
 
-contract.only(
+contract(
     'Bouncer',
     ([_, owner, authorizedUser, anyone, bouncerAddress, newBouncer]) => {
         before(async function() {
