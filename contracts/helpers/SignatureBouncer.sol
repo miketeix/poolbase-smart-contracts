@@ -72,7 +72,7 @@ contract SignatureBouncer is RBAC {
         returns (bool)
     {
         return isValidDataHash(
-            keccak256(address(this), _address),
+            keccak256(abi.encodePacked(address(this), _address)),
             _sig
             );
     }
