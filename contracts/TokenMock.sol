@@ -1,6 +1,6 @@
 import 'openzeppelin-solidity/contracts/token/ERC20/MintableToken.sol';
 
-pragma solidity 0.4.23;
+pragma solidity 0.4.24;
 
 
 contract TokenMock is MintableToken {
