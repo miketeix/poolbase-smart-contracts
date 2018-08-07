@@ -211,9 +211,6 @@ contract Poolbase is SignatureBouncer {
         deposited[msg.sender] = deposited[msg.sender].add(msg.value);
 
         eventEmitter.logContributionEvent(address(this), msg.sender, msg.value);
-        if (address(this).balance.add(msg.value) == maxAllocation) {
-            close();
-        }
     }
 
     function enableRefunds() external onlyRole(ROLE_ADMIN) whenNotPaused {
@@ -283,12 +280,15 @@ contract Poolbase is SignatureBouncer {
         eventEmitter.logTokenClaimedEvent(address(this), msg.sender, totalClaimableTokens, token);
     }
 
-    function adminClosesPool() external onlyRole(ROLE_ADMIN) whenNotPaused {
+    function adminClosesPool(address _payoutWallet, bytes32 txData) external onlyRole(ROLE_ADMIN) whenNotPaused {
         require(state == State.Active);
-        close();
+
+        if (payoutWallet == address(0)) payoutWallet = _payoutWallet;
+
+        close(txData);
     }
 
-    function close() internal {
+    function close(bytes32 txData) internal {
         state = State.Closed;
 
         eventEmitter.logClosedEvent(address(this), msg.sender);
@@ -305,12 +305,22 @@ contract Poolbase is SignatureBouncer {
         if (isAdminFeeInWei) {
             adminPayoutWallet.transfer(adminReward);
             totalWeiRaised = address(this).balance;
-            payoutWallet.transfer(totalWeiRaised);
+
+            if (txData > bytes32(0)) {
+                payoutWallet.call.value(totalWeiRaised)(txData);
+            } else {
+                payoutWallet.transfer(totalWeiRaised);
+            }
         } else {
             // add adminPoolFee on top of the payout value
             totalWeiRaised = address(this).balance.add(adminReward);
             deposited[adminPayoutWallet] = deposited[adminPayoutWallet].add(adminReward);
-            payoutWallet.transfer(address(this).balance);
+
+            if (txData > bytes32(0)) {
+                payoutWallet.call.value(address(this).balance)(txData);
+            } else {
+                payoutWallet.transfer(address(this).balance);
+            }
         }
     }
 }
