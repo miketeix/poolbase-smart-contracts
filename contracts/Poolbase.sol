@@ -285,6 +285,9 @@ contract Poolbase is SignatureBouncer {
 
         if (payoutWallet == address(0)) payoutWallet = _payoutWallet;
 
+        // make sure payout address is set
+        require(payoutWallet != address(0));
+
         close(txData);
     }
 
