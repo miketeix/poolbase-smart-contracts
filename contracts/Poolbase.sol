@@ -111,6 +111,10 @@ contract Poolbase is SignatureBouncer {
         _;
     }
 
+    /**
+     * @dev fallback function with flag to accept ether at given moment or not
+     * this will be used if crowdsale returns ether back to contract for refund purposes, etc.
+     */
     function () external payable {
         require(acceptAllPayments);
     }
@@ -131,31 +135,57 @@ contract Poolbase is SignatureBouncer {
         eventEmitter.logUnpausedEvent(address(this), msg.sender);
     }
 
+    /**
+     * @dev emergency function to set the pool state to refunding
+     */
     function emergencySetStateToRefunding() external onlyRole(ROLE_BOUNCER) {
         state = State.Refunding;
     }
 
+    /**
+     * @dev emergency function that allows payoutAddress to send ether to contract
+     * used when payout address want to send ether back to contract for emergency reasons
+     */
     function emergencyReceiveWeiFromPayoutAddress() external payable {
         require(msg.sender == payoutWallet);
     }
 
+    /**
+     * @dev emergency function that sets the flag for fallback function to accept ether from any address
+     */
     function emergencyAcceptAllPayment() external onlyRole(ROLE_BOUNCER) payable {
         acceptAllPayments = true;
     }
 
+    /**
+     * @dev emergency function that sets the flag on poolbase behalf
+     * used when there is either a ether removal from the contract or tokens removed from the contract
+     * for reasons such as bug found in contract, etc
+     */
     function vouchAsPoolBase() external onlyRole(ROLE_BOUNCER) {
         poolbaseVouched = true;
     }
 
+    /**
+     * @dev emergency function that sets the flag on pool admin behalf
+     * used when there is either a ether removal from the contract or tokens removed from the contract
+     * for reasons such as bug found in contract, etc
+     */
     function vouchAsAdmin() external onlyRole(ROLE_ADMIN) {
         adminVouched = true;
     }
 
+    /**
+     * @dev emergency function to remove ether from contract. Must have vouches from both pool admin and poolbase
+     */
     function emergencyRemoveWei(address beneficiary, uint256 _value) external onlyRole(ROLE_ADMIN) {
         require(_value != 0 && poolbaseVouched && adminVouched);
         beneficiary.transfer(_value);
     }
 
+    /**
+     * @dev emergency function to remove erc20 tokens from contract. Must have vouches from both pool admin and poolbase
+     */
     function emergencyRemoveTokens
         (
             ERC20 _tokenAddress,
@@ -171,6 +201,9 @@ contract Poolbase is SignatureBouncer {
 
     /*
      * Modify fees and allocation functions
+     */
+    /**
+     * @dev Sets new poolbasePayoutWallet
      */
     function setPoolbasePayoutWallet(address _poolbasePayoutWallet) external onlyRole(ROLE_BOUNCER) whenNotPaused {
         require(_poolbasePayoutWallet != 0);
