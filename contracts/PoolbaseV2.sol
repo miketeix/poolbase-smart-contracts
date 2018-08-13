@@ -7,7 +7,7 @@ import "./helpers/ERC20.sol";
 import "./PoolbaseInterface.sol";
 
 
-contract Poolbase is SignatureBouncer {
+contract PoolbaseV2 is SignatureBouncer {
     using SafeMath for uint256;
     // global variables
     string public constant ROLE_ADMIN = "admin";

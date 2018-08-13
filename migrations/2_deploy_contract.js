@@ -1,9 +1,9 @@
 var fs = require('fs');
 var path = require('path');
 
-const PoolbaseFactory = artifacts.require('./PoolbaseFactory');
+const PoolbaseFactory = artifacts.require('./PoolbaseCloneFactory');
 const PoolbaseEventEmitter = artifacts.require('./PoolbaseEventEmitter');
-const PoolContract = artifacts.require('./Poolbase');
+const PoolContract = artifacts.require('./PoolbaseV2');
 const addressesPath = path.join(__dirname, '../addresses');
 
 module.exports = async function(
@@ -11,18 +11,19 @@ module.exports = async function(
     network,
     [coinbaseAccount, poolAdmin, superBouncer]
 ) {
-    await deployer.deploy(PoolbaseFactory);
+    await deployer.deploy(PoolbaseContract, [superBouncer]);
+    await deployer.deploy(PoolbaseFactory, PoolbaseContract.address);
     await deployer.deploy(PoolbaseEventEmitter);
 
+    writeAddressFile(PoolbaseContract, 'poolbaseCloneLibrary');
     writeAddressFile(PoolbaseFactory, 'poolbaseFactory');
     writeAddressFile(PoolbaseEventEmitter, 'poolbaseEventEmitter');
 
     const factoryInstance = await PoolbaseFactory.at(PoolbaseFactory.address);
-    await factoryInstance.setSuperBouncers([coinbaseAccount, superBouncer], {
+
+    await factoryInstance.setPoolbasePayoutWallet(coinbaseAccount, {
         from: coinbaseAccount
     });
-
-    await factoryInstance.setPoolbasePayoutWallet(coinbaseAccount, { from: coinbaseAccount });
     await factoryInstance.setPoolbaseFee([5, 1000], { from: coinbaseAccount });
 
     const poolParams = {
