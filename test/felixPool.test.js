@@ -608,7 +608,6 @@ contract(
                 // attempt another claim right after first one. All in all token balance must be the same
                 try {
                     await felixPool.release({ from: beneficiary });
-                    assert.fail();
                 } catch (e) {
                     ensuresException(e);
                 }
