@@ -1,9 +1,9 @@
 pragma solidity 0.4.24;
 
-import "./clone/CloneFactory.sol";
 import "./PoolbaseInterface.sol";
-import "./helpers/Ownable.sol";
-import "./helpers/SafeMath.sol";
+import "../clone/CloneFactory.sol";
+import "../helpers/Ownable.sol";
+import "../helpers/SafeMath.sol";
 
 
 contract PoolbaseCloneFactory is Ownable, CloneFactory {

@@ -1,9 +1,9 @@
 pragma solidity 0.4.24;
 
-import "./PoolbaseEventEmitter.sol";
-import "./helpers/SafeMath.sol";
-import "./helpers/SignatureBouncer.sol";
-import "./helpers/ERC20.sol";
+import "../PoolbaseEventEmitter.sol";
+import "../helpers/SafeMath.sol";
+import "../helpers/SignatureBouncer.sol";
+import "../helpers/ERC20.sol";
 import "./PoolbaseInterface.sol";
 
 
