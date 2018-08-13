@@ -203,39 +203,59 @@ contract Poolbase is SignatureBouncer {
      * Modify fees and allocation functions
      */
     /**
-     * @dev Sets new poolbasePayoutWallet
+     * @dev Sets new poolbasePayoutWallet. Only poolbase bouncers are able to change this
+     * @param _newPoolbasePayoutWallet Address of new poolbase payout wallet
      */
-    function setPoolbasePayoutWallet(address _poolbasePayoutWallet) external onlyRole(ROLE_BOUNCER) whenNotPaused {
-        require(_poolbasePayoutWallet != 0);
-        poolbasePayoutWallet = _poolbasePayoutWallet;
+    function setPoolbasePayoutWallet(address _newPoolbasePayoutWallet) external onlyRole(ROLE_BOUNCER) whenNotPaused {
+        require(_newPoolbasePayoutWallet != 0);
+        poolbasePayoutWallet = _newPoolbasePayoutWallet;
     }
 
-    function setAdminPayoutWallet(address _adminPayoutWallet) external onlyRole(ROLE_ADMIN) whenNotPaused {
-        require(_adminPayoutWallet != 0);
-        adminPayoutWallet = _adminPayoutWallet;
+    /**
+     * @dev Sets new adminPayoutWallet. Only admins are able to change this
+     * @param _newAdminPayoutWallet Address of new admin payout wallet
+     */
+    function setAdminPayoutWallet(address _newAdminPayoutWallet) external onlyRole(ROLE_ADMIN) whenNotPaused {
+        require(_newAdminPayoutWallet != 0);
+        adminPayoutWallet = _newAdminPayoutWallet;
     }
 
-    function setAdminPoolFee(uint256[2] _adminPoolFee) external onlyRole(ROLE_ADMIN) whenNotPaused {
-        require(_adminPoolFee[0] != 0 && _adminPoolFee[1] != 0);
-        adminPoolFee[0] = _adminPoolFee[0];
-        adminPoolFee[1] = _adminPoolFee[1];
+    /**
+     * @dev Sets new adminPoolFee. Admins only
+     * @param _newAdminPoolFee List with two elements referencing admin pool fee as a fraction
+     * e.g. 1/2 is [1,2]
+     */
+    function setAdminPoolFee(uint256[2] _newAdminPoolFee) external onlyRole(ROLE_ADMIN) whenNotPaused {
+        require(_newAdminPoolFee[0] != 0 && _newAdminPoolFee[1] != 0);
+        adminPoolFee[0] = _newAdminPoolFee[0];
+        adminPoolFee[1] = _newAdminPoolFee[1];
     }
 
-    function setPoolbaseFee(uint256[2] _poolbaseFee) external onlyRole(ROLE_BOUNCER) whenNotPaused {
-        require(_poolbaseFee[0] != 0 && _poolbaseFee[1] != 0);
-        poolbaseFee[0] = _poolbaseFee[0];
-        poolbaseFee[1] = _poolbaseFee[1];
+    /**
+     * @dev Sets new poolbaseFee. Pollbase bouncers only allowed to change the fee
+     * @param _newPoolbaseFee List with two elements referencing poolbase fee as a fraction
+     * e.g. 2/5 is [2,5]
+     */
+    function setPoolbaseFee(uint256[2] _newPoolbaseFee) external onlyRole(ROLE_BOUNCER) whenNotPaused {
+        require(_newPoolbaseFee[0] != 0 && _newPoolbaseFee[1] != 0);
+        poolbaseFee[0] = _newPoolbaseFee[0];
+        poolbaseFee[1] = _newPoolbaseFee[1];
     }
 
-    function changeMaxAllocation(uint256 _maxAllocation) external onlyRole(ROLE_ADMIN) whenNotPaused {
-        require(_maxAllocation != 0);
-        maxAllocation = _maxAllocation;
+    /**
+     * @dev Changes maxAllocation. Admins are the only ones permitted to perform this action
+     * @param _newMaxAllocation Figure for the maximum allocation
+     */
+    function changeMaxAllocation(uint256 _newMaxAllocation) external onlyRole(ROLE_ADMIN) whenNotPaused {
+        require(_newMaxAllocation != 0);
+        maxAllocation = _newMaxAllocation;
     }
 
     /*
      * Investing Mechanisms
      */
     /**
+     * @dev Pool contributors deposit funds by callling this function with a signature of the poolbase bouncer
      * @param sig poolbase signature
      */
     function deposit(bytes sig) external onlyValidSignature(sig) whenNotPaused payable {
@@ -246,6 +266,9 @@ contract Poolbase is SignatureBouncer {
         eventEmitter.logContributionEvent(address(this), msg.sender, msg.value);
     }
 
+    /**
+     * @dev Allows admin to enable refunds for pool contributors. Done in case pool admin find pool was unsuccessful
+     */
     function enableRefunds() external onlyRole(ROLE_ADMIN) whenNotPaused {
         require(state == State.Active);
         state = State.Refunding;
@@ -253,6 +276,10 @@ contract Poolbase is SignatureBouncer {
         eventEmitter.logRefundsEnabledEvent(address(this), msg.sender);
     }
 
+    /**
+     * @dev Sets token and token payout event. Admin sets ERC20 token that pool contributors receives from contributions
+     * @param _token ERC20 contract address of claimable token
+     */
     function adminSetsBatch(ERC20 _token) external onlyRole(ROLE_ADMIN) whenNotPaused {
         require(state == State.Closed || state == State.TokenPayout);
         state = State.TokenPayout;
@@ -281,7 +308,8 @@ contract Poolbase is SignatureBouncer {
     }
 
      /**
-      * @param sig poolbase signature
+      * @dev Pool contributors uses to receive refunds
+      * @param sig poolbase signature so contributors use poolbase app to call this function
       */
     function refund(bytes sig) external onlyValidSignature(sig) whenNotPaused {
         require(state == State.Active || state == State.Refunding);
@@ -291,6 +319,10 @@ contract Poolbase is SignatureBouncer {
         eventEmitter.logRefundedEvent(address(this), msg.sender, depositedValue);
     }
 
+    /**
+     * @dev Function for pool contributors to claim their tokens
+     * @param sig poolbase signature
+     */
     function claimToken(bytes sig)
         external
         onlyValidSignature(sig)
@@ -313,17 +345,25 @@ contract Poolbase is SignatureBouncer {
         eventEmitter.logTokenClaimedEvent(address(this), msg.sender, totalClaimableTokens, token);
     }
 
+    /**
+     * @dev Permits admin to close pool and receive collected ether
+     */
     function adminClosesPool(address _payoutWallet, bytes32 txData) external onlyRole(ROLE_ADMIN) whenNotPaused {
         require(state == State.Active);
 
         if (payoutWallet == address(0)) payoutWallet = _payoutWallet;
 
-        // make sure payout address is set
+        // ensures payout address is set
         require(payoutWallet != address(0));
 
         close(txData);
     }
 
+    /**
+     * @dev Internal function with core logic of pool closing event
+     * @param txData Used when close function must send a low level function to a smart contract.
+     * if not used then pass as 0(zero) bytes
+     */
     function close(bytes32 txData) internal {
         state = State.Closed;
 
