@@ -8,9 +8,8 @@ import "./helpers/SafeMath.sol";
 
 contract PoolbaseCloneFactory is Ownable, CloneFactory {
     using SafeMath for uint256;
-    // address of poolbase contract for cloning purposes
+    // poolbase contract address for cloning purposes
     address public libraryAddress;
-    address[] public superBouncers;
     address public poolbasePayoutWallet;
     uint256[2] public poolbaseFee;
 
@@ -20,45 +19,50 @@ contract PoolbaseCloneFactory is Ownable, CloneFactory {
     event ContractInstantiation(address msgSender, address instantiation, bytes32 hashMessage);
 
     // set poolbase contract clone on deployment
+    // NOTE: superBouncers, addresses that belonng to Poolbase, must be set in the library/ poolbase clone level
+    // i.e. upon Poolbase deployment
     constructor(address _libraryAddress) public {
         libraryAddress = _libraryAddress;
     }
 
    /**
-     * @dev Have the option of updating the poolbase contract for cloning
-     * @param _libraryAddress Address for new contract
-     */
+    * @dev Have the option of updating the poolbase contract for cloning
+    * @param _libraryAddress Address for new contract. Note that superBouncers will be set
+    * in the _libraryAddress deployment
+    */
     function setLibraryAddress(address _libraryAddress) external onlyOwner {
         libraryAddress = _libraryAddress;
     }
 
-   /**
-     * @dev Add super bouncers. Only two are allowed to exist at any time
-     * @param _superBouncers List of super bouncers that belong to poolbase.io
+    /**
+     * @dev Add poolbase payout wallet. Only two are allowed to exist at any time
+     * @param _poolbasePayoutWallet Address of wallet that belongs to Poolbase
      */
-    function setSuperBouncers(address[2] _superBouncers) external onlyOwner {
-        require(_superBouncers[0] != address(0) && _superBouncers[1] != address(0));
-        superBouncers = _superBouncers;
-    }
-
     function setPoolbasePayoutWallet(address _poolbasePayoutWallet) external onlyOwner {
         require(_poolbasePayoutWallet != address(0));
         poolbasePayoutWallet = _poolbasePayoutWallet;
     }
 
+    /**
+     * @dev Sets Poolbase fee. only called by Poolbase factory owner
+     * @param _poolbaseFee List with two elements referencing poolbase fee as a fraction
+     * e.g. 1/2 is [1,2]
+     */
     function setPoolbaseFee(uint256[2] _poolbaseFee) external onlyOwner {
         require(_poolbaseFee[0] != 0 && _poolbaseFee[1] != 0);
         poolbaseFee = _poolbaseFee;
     }
 
-    function getSuperBouncers() external view returns(address, address) {
-        return (superBouncers[0], superBouncers[1]);
-    }
-
+    /**
+     * @dev Getter for poolbase payout wallet
+     */
     function getPoolbasePayoutWallet() external view returns(address) {
         return poolbasePayoutWallet;
     }
 
+    /**
+     * @dev Getter for poolbase fee
+     */
     function getPoolbaseFee() external view returns(uint256, uint256) {
         return (poolbaseFee[0], poolbaseFee[1]);
     }
@@ -76,16 +80,17 @@ contract PoolbaseCloneFactory is Ownable, CloneFactory {
         return instantiations[creator].length;
     }
 
-    /* @dev Allows verified creation of pools.
-    * @param _maxAllocation Pool cap in wei
-    * @param _adminPoolFee Percentage from the pool that goes to master admin pool
-    * @param _isAdminFeeInWei Check on whether master admin pool fee is paid out in Ether.
-    * @param _payoutwallet Address where funds collected will be sent to at the end
-    * @param _adminPayoutWallet Address where admin fees goes to
-    * @param _eventEmitterContract Address of event emitter contract
-    * If not then it is paid out in ERC20 tokens
-    * @param _admins List of pool admin addresses.
-    */
+    /**
+     * @dev Allows verified creation of pools.
+     * @param _maxAllocation Pool cap in wei
+     * @param _adminPoolFee Percentage from the pool that goes to master admin pool
+     * @param _isAdminFeeInWei Check on whether master admin pool fee is paid out in Ether.
+     * @param _payoutWallet Address where funds collected will be sent to at the end
+     * @param _adminPayoutWallet Address where admin fees goes to
+     * @param _eventEmitterContract Address of event emitter contract
+     * If not then it is paid out in ERC20 tokens
+     * @param _admins List of pool admin addresses.
+     */
     function create
     (
         uint256 _maxAllocation,

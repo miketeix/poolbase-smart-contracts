@@ -65,24 +65,42 @@ contract PoolbaseFactory is Factory, Ownable {
         superBouncers = _superBouncers;
     }
 
+    /**
+     * @dev Add poolbase payout wallet. Only two are allowed to exist at any time
+     * @param _poolbasePayoutWallet Address of wallet that belongs to Poolbase
+     */
     function setPoolbasePayoutWallet(address _poolbasePayoutWallet) external onlyOwner {
         require(_poolbasePayoutWallet != address(0));
         poolbasePayoutWallet = _poolbasePayoutWallet;
     }
 
+    /**
+     * @dev Sets Poolbase fee. only called by Poolbase factory owner
+     * @param _poolbaseFee List with two elements referencing poolbase fee as a fraction
+     * e.g. 1/2 is [1,2]
+     */
     function setPoolbaseFee(uint256[2] _poolbaseFee) external onlyOwner {
         require(_poolbaseFee[0] != 0 && _poolbaseFee[1] != 0);
         poolbaseFee = _poolbaseFee;
     }
 
+    /**
+     * @dev Function getter for superBouncers
+     */
     function getSuperBouncers() external view returns(address, address) {
         return (superBouncers[0], superBouncers[1]);
     }
 
+    /**
+     * @dev Getter for poolbase payout wallet
+     */
     function getPoolbasePayoutWallet() external view returns(address) {
         return poolbasePayoutWallet;
     }
 
+    /**
+     * @dev Getter for poolbase fee
+     */
     function getPoolbaseFee() external view returns(uint256, uint256) {
         return (poolbaseFee[0], poolbaseFee[1]);
     }
@@ -91,7 +109,7 @@ contract PoolbaseFactory is Factory, Ownable {
     * @param _maxAllocation Pool cap in wei
     * @param _adminPoolFee Percentage from the pool that goes to master admin pool
     * @param _isAdminFeeInWei Check on whether master admin pool fee is paid out in Ether.
-    * @param _payoutwallet Address where funds collected will be sent to at the end
+    * @param _payoutWallet Address where funds collected will be sent to at the end
     * @param _adminPayoutWallet Address where admin fees goes to
     * @param _eventEmitterContract Address of event emitter contract
     * If not then it is paid out in ERC20 tokens
@@ -108,9 +126,8 @@ contract PoolbaseFactory is Factory, Ownable {
         address[] _admins
     )
         public
-        returns (address pool)
     {
-        pool = new Poolbase(
+        address pool = new Poolbase(
             superBouncers,
             _maxAllocation,
             _adminPoolFee,
