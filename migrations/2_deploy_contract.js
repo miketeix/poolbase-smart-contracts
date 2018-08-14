@@ -11,11 +11,11 @@ module.exports = async function(
     network,
     [coinbaseAccount, poolAdmin, superBouncer]
 ) {
-    await deployer.deploy(PoolbaseContract, [superBouncer]);
-    await deployer.deploy(PoolbaseFactory, PoolbaseContract.address);
+    await deployer.deploy(PoolContract, [superBouncer]);
+    await deployer.deploy(PoolbaseFactory, PoolContract.address);
     await deployer.deploy(PoolbaseEventEmitter);
 
-    writeAddressFile(PoolbaseContract, 'poolbaseCloneLibrary');
+    writeAddressFile(PoolContract, 'poolbaseCloneLibrary');
     writeAddressFile(PoolbaseFactory, 'poolbaseFactory');
     writeAddressFile(PoolbaseEventEmitter, 'poolbaseEventEmitter');
 
