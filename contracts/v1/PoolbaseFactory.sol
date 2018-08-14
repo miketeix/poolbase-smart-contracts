@@ -1,7 +1,7 @@
 pragma solidity 0.4.24;
 
 import "./Poolbase.sol";
-import "../helpers/Ownable.sol";
+import "../lib/Ownable.sol";
 
 
 contract Factory {

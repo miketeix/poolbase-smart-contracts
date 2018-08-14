@@ -1,9 +1,9 @@
 pragma solidity 0.4.24;
 
 import "./PoolbaseInterface.sol";
-import "../clone/CloneFactory.sol";
-import "../helpers/Ownable.sol";
-import "../helpers/SafeMath.sol";
+import "./CloneFactory.sol";
+import "../lib/Ownable.sol";
+import "../lib/SafeMath.sol";
 
 
 contract PoolbaseCloneFactory is Ownable, CloneFactory {
@@ -19,7 +19,7 @@ contract PoolbaseCloneFactory is Ownable, CloneFactory {
     event ContractInstantiation(address msgSender, address instantiation, bytes32 hashMessage);
 
     // set poolbase contract clone on deployment
-    // NOTE: superBouncers, addresses that belonng to Poolbase, must be set in the library/ poolbase clone level
+    // NOTE: superBouncers, addresses that belonng to Poolbase, must be set in the library/poolbase clone level
     // i.e. upon Poolbase deployment
     constructor(address _libraryAddress) public {
         libraryAddress = _libraryAddress;

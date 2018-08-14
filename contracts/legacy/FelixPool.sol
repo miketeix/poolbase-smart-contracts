@@ -1,8 +1,8 @@
-import 'openzeppelin-solidity/contracts/math/SafeMath.sol';
-import 'openzeppelin-solidity/contracts/crowdsale/distribution/utils/RefundVault.sol';
-import 'openzeppelin-solidity/contracts/token/ERC20/ERC20.sol';
-
 pragma solidity 0.4.24;
+
+import './RefundVault.sol';
+import '../lib/SafeMath.sol';
+import '../lib/ERC20.sol';
 
 
 contract FelixPool {
