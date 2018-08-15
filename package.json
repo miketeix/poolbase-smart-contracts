@@ -1,13 +1,14 @@
 {
     "name": "felix-contract",
     "version": "1.0.0",
-    "description": "Pooling contract",
+    "description": "Poolbase Smart Contracts",
     "main": "truffle-config.js",
     "directories": {
         "test": "test"
     },
     "scripts": {
-        "test": "bash run_test.sh"
+        "test": "bash scripts/run_test.sh",
+        "cov": "bash scripts/coverage.sh"
     },
     "author": "",
     "license": "ISC",
@@ -35,6 +36,9 @@
         "eslint-plugin-promise": "^3.6.0",
         "eslint-plugin-standard": "^2.3.1",
         "ethereumjs-util": "^5.1.2",
-        "truffle-contract": "^3.0.5"
+        "truffle-contract": "^3.0.5",
+        "solidity-coverage": "^0.5.5",
+        "ganache-cli": "^6.1.6",
+        "truffle": "^4.1.13"
     }
 }
