@@ -31,6 +31,7 @@ contract PoolbaseCloneFactory is Ownable, CloneFactory {
     * in the _libraryAddress deployment
     */
     function setLibraryAddress(address _libraryAddress) external onlyOwner {
+        require(_libraryAddress != address(0));
         libraryAddress = _libraryAddress;
     }
 

@@ -1,4 +1,4 @@
-const { should, ensuresException } = require('./helpers/utils');
+const { should, ensuresException } = require('../helpers/utils');
 const PoolbaseFactory = artifacts.require('./PoolbaseFactory.sol');
 
 const BigNumber = web3.BigNumber;

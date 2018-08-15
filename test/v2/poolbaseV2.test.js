@@ -1,9 +1,8 @@
-const Poolbase = artifacts.require('./Poolbase.sol');
-const TokenMock = artifacts.require('./TokenMock.sol');
+const Poolbase = artifacts.require('./PoolbaseV2.sol');
 const BigNumber = web3.BigNumber;
 
-const { latestTime, duration, increaseTimeTo } = require('./helpers/timer');
-const { should, ensuresException, ether } = require('./helpers/utils');
+const { latestTime, duration, increaseTimeTo } = require('../helpers/timer');
+const { should, ensuresException, ether } = require('../helpers/utils');
 
 // contract(
 //     'Poolbase',

@@ -117,6 +117,7 @@ contract PoolbaseV2 is SignatureBouncer {
             adminPoolFee[1] == 0 &&
             poolbaseFee[0] == 0 &&
             poolbaseFee[1] == 0 &&
+            payoutWallet == address(0) &&
             adminPayoutWallet == address(0) &&
             poolbasePayoutWallet == address(0) &&
             eventEmitter == address(0)
