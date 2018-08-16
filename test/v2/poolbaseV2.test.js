@@ -33,16 +33,16 @@ contract(
     it("constructor sets bouncer", async () => {
       const roleBouncer = await poolbase.ROLE_BOUNCER();
 
-      const isBouncer1 = await poolbase.hasRole(bouncer1, roleBouncer);
+      const isBouncer1 = await poolbase.hasRole.call(bouncer1, roleBouncer);
       isBouncer1.should.be.true;
 
-      const isBouncer2 = await poolbase.hasRole(bouncer2, roleBouncer);
+      const isBouncer2 = await poolbase.hasRole.call(bouncer2, roleBouncer);
       isBouncer2.should.be.true;
 
-      const isBouncer3 = await poolbase.hasRole(owner, roleBouncer);
+      const isBouncer3 = await poolbase.hasRole.call(owner, roleBouncer);
       isBouncer3.should.be.false;
 
-      const isBouncer4 = await poolbase.hasRole(admin1, roleBouncer);
+      const isBouncer4 = await poolbase.hasRole.call(admin1, roleBouncer);
       isBouncer4.should.be.false;
     });
 
