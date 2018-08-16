@@ -20,24 +20,24 @@
     </h1>
     <div class='clearfix'>
       <div class='fl pad1y space-right2'>
-        <span class="strong">15.66% </span>
+        <span class="strong">18.07% </span>
         <span class="quiet">Statements</span>
-        <span class='fraction'>13/83</span>
+        <span class='fraction'>15/83</span>
       </div>
       <div class='fl pad1y space-right2'>
-        <span class="strong">1.79% </span>
+        <span class="strong">5.36% </span>
         <span class="quiet">Branches</span>
-        <span class='fraction'>1/56</span>
+        <span class='fraction'>3/56</span>
       </div>
       <div class='fl pad1y space-right2'>
-        <span class="strong">7.69% </span>
+        <span class="strong">15.38% </span>
         <span class="quiet">Functions</span>
-        <span class='fraction'>2/26</span>
+        <span class='fraction'>4/26</span>
       </div>
       <div class='fl pad1y space-right2'>
-        <span class="strong">12.62% </span>
+        <span class="strong">14.56% </span>
         <span class="quiet">Lines</span>
-        <span class='fraction'>13/103</span>
+        <span class='fraction'>15/103</span>
       </div>
     </div>
   </div>
@@ -467,7 +467,15 @@
 422
 423
 424
-425</td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+425
+426
+427
+428
+429
+430
+431
+432
+433</td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -551,7 +559,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">3×</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -581,6 +589,14 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">5×</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -645,7 +661,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">2×</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -958,7 +974,7 @@ contract PoolbaseV2 is SignatureBouncer {
      * @dev Modifier to make a function callable only when the contract is not paused.
      */
 <span class="fstat-no" title="function not covered" >    modifier whenNotPaused(</span>) {
-<span class="cstat-no" title="statement not covered" >        require(!paused)</span>;
+<span class="cstat-no" title="statement not covered" >        require(!paused,</span> "Contract functions must be unpaused");
         _;
     }
 &nbsp;
@@ -966,7 +982,7 @@ contract PoolbaseV2 is SignatureBouncer {
      * @dev Modifier to make a function callable only when the contract is paused.
      */
 <span class="fstat-no" title="function not covered" >    modifier whenPaused(</span>) {
-<span class="cstat-no" title="statement not covered" >        require(paused)</span>;
+<span class="cstat-no" title="statement not covered" >        require(paused,</span> "Contract functions must be paused");
         _;
     }
 &nbsp;
@@ -974,8 +990,8 @@ contract PoolbaseV2 is SignatureBouncer {
      * @dev fallback function with flag to accept ether at given moment or not
      * this will be used if crowdsale returns ether back to contract for refund purposes, etc.
      */
-<span class="fstat-no" title="function not covered" >    function () external payabl</span>e {
-<span class="cstat-no" title="statement not covered" >        require(acceptAllPayments)</span>;
+    function () external payable {
+        require(acceptAllPayments, "Only accept payments in the fallback function when acceptAllPayments flag is set");
     }
 &nbsp;
     /*
@@ -987,7 +1003,7 @@ contract PoolbaseV2 is SignatureBouncer {
      * @param _payoutwallet Address where funds collected will be sent to at the end
      * @param _adminPayoutWallet Address where admin fees goes to
      * @param _poolbasePayoutWallet Address where poolbase fees goes to
-     * @param _eventEmitterContract Address of event emitter contract
+     * @param _eventEmitter Address of event emitter contract
      * If not then it is paid out in ERC20 tokens
      * @param _admins List of pool admin addresses.
      */
@@ -999,7 +1015,7 @@ contract PoolbaseV2 is SignatureBouncer {
         address _payoutWallet,
         address _adminPayoutWallet,
         address _poolbasePayoutWallet,
-        address _eventEmitterContract,
+        address _eventEmitter,
         address[] _admins
     )
     external
@@ -1013,7 +1029,15 @@ contract PoolbaseV2 is SignatureBouncer {
             payoutWallet == address(0) &amp;&amp;
             adminPayoutWallet == address(0) &amp;&amp;
             poolbasePayoutWallet == address(0) &amp;&amp;
-            eventEmitter == address(0)
+            eventEmitter == address(0) &amp;&amp;
+            _maxAllocation != 0 &amp;&amp;
+            _adminPoolFee[0] != 0 &amp;&amp;
+            _adminPoolFee[1] != 0 &amp;&amp;
+            _poolbaseFee[0] != 0 &amp;&amp;
+            _poolbaseFee[1] != 0 &amp;&amp;
+            _adminPayoutWallet != address(0) &amp;&amp;
+            _poolbasePayoutWallet != address(0) &amp;&amp;
+            _eventEmitter != address(0), "Global variables should have not been set before and params variables cannot be empty but payoutWallet"
         );
 &nbsp;
         maxAllocation = _maxAllocation;
@@ -1023,7 +1047,7 @@ contract PoolbaseV2 is SignatureBouncer {
         payoutWallet = _payoutWallet;
         adminPayoutWallet = _adminPayoutWallet;
         poolbasePayoutWallet = _poolbasePayoutWallet;
-        eventEmitter = PoolbaseEventEmitter(_eventEmitterContract);
+        eventEmitter = PoolbaseEventEmitter(_eventEmitter);
 &nbsp;
         addRole(msg.sender, ROLE_ADMIN); // add msg.sender as poolAdmin
         for (uint8 i = 0; i &lt; _admins.length; i++) {
@@ -1062,14 +1086,14 @@ contract PoolbaseV2 is SignatureBouncer {
      * used when payout address want to send ether back to contract for emergency reasons
      */
 <span class="fstat-no" title="function not covered" >    function emergencyReceiveWeiFromPayoutAddress() external payabl</span>e {
-<span class="cstat-no" title="statement not covered" >        require(msg.sender == payoutWallet)</span>;
+<span class="cstat-no" title="statement not covered" >        require(msg.sender == payoutWallet, "Only Allowed to receive from payoutWallet")</span>;
     }
 &nbsp;
     /**
      * @dev emergency function that sets the flag for fallback function to accept ether from any address
      */
-<span class="fstat-no" title="function not covered" >    function emergencyAcceptAllPayment() external onlyRole(ROLE_BOUNCER) payabl</span>e {
-<span class="cstat-no" title="statement not covered" >        acceptAllPayments = true</span>;
+    function emergencyAcceptAllPayments(bool willAccept) external onlyRole(ROLE_BOUNCER) payable {
+        acceptAllPayments = willAccept;
     }
 &nbsp;
     /**
@@ -1321,7 +1345,7 @@ contract PoolbaseV2 is SignatureBouncer {
 </div><!-- /wrapper -->
 <div class='footer quiet pad2 space-top1 center small'>
   Code coverage
-  generated by <a href="http://istanbul-js.org/" target="_blank">istanbul</a> at Wed Aug 15 2018 23:36:04 GMT+0200 (CEST)
+  generated by <a href="http://istanbul-js.org/" target="_blank">istanbul</a> at Thu Aug 16 2018 13:22:10 GMT+0200 (CEST)
 </div>
 </div>
 <script src="../prettify.js"></script>
