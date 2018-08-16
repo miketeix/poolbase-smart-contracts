@@ -490,38 +490,6 @@ contract(
         );
       });
 
-      it("cannot release token twice for the same time period", async () => {
-        await increaseTimeTo(start + cliff);
-
-        const { receipt } = await felixPool.release({
-          from: beneficiary
-        });
-        const releaseTime = web3.eth.getBlock(receipt.blockNumber).timestamp;
-
-        let balance = await token.balanceOf(beneficiary);
-        balance.should.bignumber.equal(
-          totalTokensForPool
-            .mul(releaseTime - start)
-            .div(length)
-            .floor()
-        );
-
-        // attempt another claim right after first one. All in all token balance must be the same
-        try {
-          await felixPool.release({ from: beneficiary });
-        } catch (e) {
-          ensuresException(e);
-        }
-
-        balance = await token.balanceOf(beneficiary);
-        balance.should.bignumber.equal(
-          totalTokensForPool
-            .mul(releaseTime - start)
-            .div(length)
-            .floor()
-        );
-      });
-
       it("should linearly release tokens during vesting period", async () => {
         const vestingPeriod = length - cliff;
         const checkpoints = 4;

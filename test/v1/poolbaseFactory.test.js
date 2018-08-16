@@ -3,7 +3,7 @@ const PoolbaseFactory = artifacts.require("./PoolbaseFactory.sol");
 
 const BigNumber = web3.BigNumber;
 
-contract.only(
+contract(
   "PoolbaseFactory",
   ([
     owner,

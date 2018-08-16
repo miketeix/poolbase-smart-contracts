@@ -82,7 +82,7 @@ contract PoolbaseV2 is SignatureBouncer {
      * this will be used if crowdsale returns ether back to contract for refund purposes, etc.
      */
     function () external payable {
-        require(acceptAllPayments);
+        require(acceptAllPayments, "Only accept payments in the fallback function when acceptAllPayments flag is set");
     }
 
     /*
@@ -94,7 +94,7 @@ contract PoolbaseV2 is SignatureBouncer {
      * @param _payoutwallet Address where funds collected will be sent to at the end
      * @param _adminPayoutWallet Address where admin fees goes to
      * @param _poolbasePayoutWallet Address where poolbase fees goes to
-     * @param _eventEmitterContract Address of event emitter contract
+     * @param _eventEmitter Address of event emitter contract
      * If not then it is paid out in ERC20 tokens
      * @param _admins List of pool admin addresses.
      */
@@ -106,7 +106,7 @@ contract PoolbaseV2 is SignatureBouncer {
         address _payoutWallet,
         address _adminPayoutWallet,
         address _poolbasePayoutWallet,
-        address _eventEmitterContract,
+        address _eventEmitter,
         address[] _admins
     )
     external
@@ -120,7 +120,15 @@ contract PoolbaseV2 is SignatureBouncer {
             payoutWallet == address(0) &&
             adminPayoutWallet == address(0) &&
             poolbasePayoutWallet == address(0) &&
-            eventEmitter == address(0)
+            eventEmitter == address(0) &&
+            _maxAllocation != 0 &&
+            _adminPoolFee[0] != 0 &&
+            _adminPoolFee[1] != 0 &&
+            _poolbaseFee[0] != 0 &&
+            _poolbaseFee[1] != 0 &&
+            _adminPayoutWallet != address(0) &&
+            _poolbasePayoutWallet != address(0) &&
+            _eventEmitter != address(0), "Global variables should have not been set before and params variables cannot be empty but payoutWallet"
         );
 
         maxAllocation = _maxAllocation;
@@ -130,7 +138,7 @@ contract PoolbaseV2 is SignatureBouncer {
         payoutWallet = _payoutWallet;
         adminPayoutWallet = _adminPayoutWallet;
         poolbasePayoutWallet = _poolbasePayoutWallet;
-        eventEmitter = PoolbaseEventEmitter(_eventEmitterContract);
+        eventEmitter = PoolbaseEventEmitter(_eventEmitter);
 
         addRole(msg.sender, ROLE_ADMIN); // add msg.sender as poolAdmin
         for (uint8 i = 0; i < _admins.length; i++) {
@@ -169,14 +177,14 @@ contract PoolbaseV2 is SignatureBouncer {
      * used when payout address want to send ether back to contract for emergency reasons
      */
     function emergencyReceiveWeiFromPayoutAddress() external payable {
-        require(msg.sender == payoutWallet);
+        require(msg.sender == payoutWallet, "Only Allowed to receive from payoutWallet");
     }
 
     /**
      * @dev emergency function that sets the flag for fallback function to accept ether from any address
      */
-    function emergencyAcceptAllPayment() external onlyRole(ROLE_BOUNCER) payable {
-        acceptAllPayments = true;
+    function emergencyAcceptAllPayments(bool willAccept) external onlyRole(ROLE_BOUNCER) payable {
+        acceptAllPayments = willAccept;
     }
 
     /**

@@ -116,7 +116,7 @@ contract Poolbase is SignatureBouncer {
      * this will be used if crowdsale returns ether back to contract for refund purposes, etc.
      */
     function () external payable {
-        require(acceptAllPayments);
+        require(acceptAllPayments, "Only accept payments in the fallback function when acceptAllPayments flag is set");
     }
 
     /**
@@ -147,14 +147,14 @@ contract Poolbase is SignatureBouncer {
      * used when payout address want to send ether back to contract for emergency reasons
      */
     function emergencyReceiveWeiFromPayoutAddress() external payable {
-        require(msg.sender == payoutWallet);
+        require(msg.sender == payoutWallet, "Only Allowed to receive from payoutWallet");
     }
 
     /**
      * @dev emergency function that sets the flag for fallback function to accept ether from any address
      */
-    function emergencyAcceptAllPayment() external onlyRole(ROLE_BOUNCER) payable {
-        acceptAllPayments = true;
+    function emergencyAcceptAllPayments(bool willAccept) external onlyRole(ROLE_BOUNCER) payable {
+        acceptAllPayments = willAccept;
     }
 
     /**
