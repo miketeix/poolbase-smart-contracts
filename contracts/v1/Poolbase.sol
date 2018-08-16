@@ -98,8 +98,8 @@ contract Poolbase is SignatureBouncer {
     /**
      * @dev Modifier to make a function callable only when the contract is not paused.
      */
-    modifier whenNotPaused() {
-        require(!paused);
+     modifier whenNotPaused() {
+        require(!paused, "Contract functions must be unpaused");
         _;
     }
 
@@ -107,7 +107,7 @@ contract Poolbase is SignatureBouncer {
      * @dev Modifier to make a function callable only when the contract is paused.
      */
     modifier whenPaused() {
-        require(paused);
+        require(paused, "Contract functions must be paused");
         _;
     }
 
