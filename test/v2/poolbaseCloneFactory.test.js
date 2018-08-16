@@ -1,4 +1,4 @@
-const { should, ensuresException } = require("../helpers/utils");
+const { ensuresException } = require("../helpers/utils");
 const PoolbaseCloneFactory = artifacts.require("./PoolbaseCloneFactory.sol");
 const Poolbase = artifacts.require("./PoolbaseV2.sol");
 

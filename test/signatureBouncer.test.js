@@ -5,8 +5,6 @@ const { signHex } = require('./helpers/sign');
 
 const Bouncer = artifacts.require('SignatureBouncerMock');
 
-const { should } = require('./helpers/utils');
-
 const getSigner = (contract, signer, data = '') => addr => {
     // via: https://github.com/OpenZeppelin/zeppelin-solidity/pull/812/files
     const message = contract.address.substr(2) + addr.substr(2) + data;

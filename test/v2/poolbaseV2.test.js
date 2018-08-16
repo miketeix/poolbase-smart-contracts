@@ -2,7 +2,7 @@ const Poolbase = artifacts.require("./PoolbaseV2.sol");
 const PoolbaseEventEmitter = artifacts.require("./PoolbaseEventEmitter.sol");
 const BigNumber = web3.BigNumber;
 
-const { should, ensuresException, ether } = require("../helpers/utils");
+const { ensuresException, ether } = require("../helpers/utils");
 
 contract(
   "Poolbase",
