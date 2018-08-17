@@ -8,7 +8,6 @@ contract(
   "Poolbase",
   ([
     owner,
-    wallet,
     investor1,
     investor2,
     investor3,
@@ -24,6 +23,7 @@ contract(
     const maxAllocation = new BigNumber(200);
     const isAdminFeeInWei = true;
     const adminPoolFee = [1, 2];
+    const poolbaseFee = [2, 5];
 
     beforeEach(async () => {
       poolbaseEventEmitter = await PoolbaseEventEmitter.new();
@@ -85,39 +85,210 @@ contract(
       });
     });
 
-    // describe("#init", () => {
-    //   it("sets the pool threshold", async () => {
-    //     const thresholdInContract = await felixPool.threshold();
-    //     thresholdInContract.should.be.bignumber.equal(threshold);
-    //   });
+    describe("#init", () => {
+      beforeEach(async () => {
+        await poolbase.init(
+          maxAllocation,
+          adminPoolFee,
+          poolbaseFee,
+          isAdminFeeInWei,
+          payoutWallet,
+          adminPayoutWallet,
+          poolbasePayoutWallet,
+          poolbaseEventEmitter.address,
+          [admin1, admin2]
+        );
+      });
 
-    //   it("sets the pool cap", async () => {
-    //     const capInContract = await felixPool.cap();
-    //     capInContract.should.be.bignumber.equal(cap);
-    //   });
+      it("sets the pool maxAllocation", async () => {
+        const maxAllocationValue = await poolbase.maxAllocation();
+        maxAllocationValue.should.be.bignumber.equal(maxAllocation);
+      });
 
-    //   it("sets endTime", async () => {
-    //     const endTimeInContract = await felixPool.endTime();
-    //     endTimeInContract.should.be.bignumber.equal(endTime);
-    //   });
+      it("sets adminPoolFee", async () => {
+        const adminPoolFeeFirstValue = await poolbase.adminPoolFee(0);
+        const adminPoolFeeSecondValue = await poolbase.adminPoolFee(1);
+        adminPoolFeeFirstValue.should.be.bignumber.equal(adminPoolFee[0]);
+        adminPoolFeeSecondValue.should.be.bignumber.equal(adminPoolFee[1]);
+      });
 
-    //   it("sets admin", async () => {
-    //     const admin = await felixPool.admin();
-    //     admin.should.be.bignumber.equal(owner);
-    //   });
+      it("sets poolbaseFee", async () => {
+        const poolbaseFeeFirstValue = await poolbase.poolbaseFee(0);
+        const poolbaseFeeSecondValue = await poolbase.poolbaseFee(1);
 
-    //   it("sets rate", async () => {
-    //     const rateInContract = await felixPool.rate();
-    //     rateInContract.should.be.bignumber.equal(rate);
-    //   });
+        poolbaseFeeFirstValue.should.be.bignumber.equal(poolbaseFee[0]);
+        poolbaseFeeSecondValue.should.be.bignumber.equal(poolbaseFee[1]);
+      });
 
-    //   it("creates refund vault contract with a wallet", async () => {
-    //     const refundVaultInContract = await felixPool.vault();
-    //     refundVaultInContract.should.be.equal(vault.address);
+      it("sets isAdminFeeInWei", async () => {
+        const isAdminFeeInWeiValue = await poolbase.isAdminFeeInWei();
+        isAdminFeeInWeiValue.should.be.equal(isAdminFeeInWei);
+      });
 
-    //     const vaultWallet = await vault.wallet();
-    //     vaultWallet.should.be.equal(wallet);
-    //   });
-    // });
+      it("sets payoutWallet", async () => {
+        const payoutWalletValue = await poolbase.payoutWallet();
+        payoutWalletValue.should.be.equal(payoutWallet);
+      });
+
+      it("sets adminPayoutWallet", async () => {
+        const adminPayoutWalletValue = await poolbase.adminPayoutWallet();
+        adminPayoutWalletValue.should.be.equal(adminPayoutWallet);
+      });
+
+      it("sets poolbasePayoutWallet", async () => {
+        const poolbasePayoutWalletValue = await poolbase.poolbasePayoutWallet();
+        poolbasePayoutWalletValue.should.be.equal(poolbasePayoutWallet);
+      });
+
+      it("sets eventEmitterContract", async () => {
+        const eventEmitterContractValue = await poolbase.eventEmitter();
+        eventEmitterContractValue.should.be.equal(poolbaseEventEmitter.address);
+      });
+
+      it("sets admins", async () => {
+        const roleAmind = await poolbase.ROLE_ADMIN();
+
+        const isAdmin1 = await poolbase.hasRole.call(admin1, roleAmind);
+        isAdmin1.should.be.true;
+
+        const isAdmin2 = await poolbase.hasRole.call(admin2, roleAmind);
+        isAdmin2.should.be.true;
+      });
+
+      it("cannot call init again once initial values are set", async () => {
+        // attempt to override initial values should throw exceptions
+        try {
+          await poolbase.init(
+            new BigNumber(100),
+            [5, 7],
+            [8, 9],
+            false,
+            payoutWallet,
+            adminPayoutWallet,
+            poolbasePayoutWallet,
+            poolbaseEventEmitter.address,
+            [investor1, investor2]
+          );
+          assert.fail();
+        } catch (error) {
+          ensuresException(error);
+        }
+
+        const maxAllocationValue = await poolbase.maxAllocation();
+        // maxAllocation is still the same
+        maxAllocationValue.should.be.bignumber.equal(maxAllocation);
+      });
+    });
+
+    context("when init function is set", () => {
+      beforeEach(async () => {
+        await poolbase.init(
+          maxAllocation,
+          adminPoolFee,
+          poolbaseFee,
+          isAdminFeeInWei,
+          payoutWallet,
+          adminPayoutWallet,
+          poolbasePayoutWallet,
+          poolbaseEventEmitter.address,
+          [admin1, admin2]
+        );
+      });
+
+      describe("#paused", () => {
+        it("does not pause contract when it triggered by a non-poolbase-bouncer", async () => {
+          try {
+            await poolbase.pause({ from: admin1 });
+            assert.fail();
+          } catch (e) {
+            ensuresException(e);
+          }
+
+          let isPaused = await poolbase.paused();
+          isPaused.should.be.false;
+
+          await poolbase.pause({ from: bouncer1 });
+
+          isPaused = await poolbase.paused();
+          isPaused.should.be.true;
+        });
+
+        it("does not pause when contract is already paused", async () => {
+          await poolbase.pause({ from: bouncer1 });
+
+          try {
+            await poolbase.pause({ from: bouncer1 });
+            assert.fail();
+          } catch (e) {
+            ensuresException(e);
+          }
+
+          let isPaused = await poolbase.paused();
+          isPaused.should.be.true;
+        });
+
+        it("emits Pause event", async () => {
+          const watcher = poolbaseEventEmitter.Pause();
+
+          await poolbase.pause({ from: bouncer1 });
+
+          const events = watcher.get();
+          const { event, args } = events[0];
+          const { msgSender, poolContractAddress } = args;
+
+          event.should.be.equal("Pause");
+          msgSender.should.be.equal(bouncer1);
+          poolContractAddress.should.be.equal(poolbase.address);
+        });
+      });
+
+      describe("#unpaused", () => {
+        it("does not unpause contract when it triggered by a non-poolbase-bouncer", async () => {
+          await poolbase.pause({ from: bouncer1 });
+
+          try {
+            await poolbase.unpause({ from: admin1 });
+            assert.fail();
+          } catch (e) {
+            ensuresException(e);
+          }
+
+          let isPaused = await poolbase.paused();
+          isPaused.should.be.true;
+
+          await poolbase.unpause({ from: bouncer1 });
+
+          isPaused = await poolbase.paused();
+          isPaused.should.be.false;
+        });
+
+        it("does not unpause when contract is already unpaused", async () => {
+          try {
+            await poolbase.unpause({ from: bouncer1 });
+            assert.fail();
+          } catch (e) {
+            ensuresException(e);
+          }
+
+          let isPaused = await poolbase.paused();
+          isPaused.should.be.false;
+        });
+
+        it("emits Unpause event", async () => {
+          await poolbase.pause({ from: bouncer1 });
+          const watcher = poolbaseEventEmitter.Unpause();
+
+          await poolbase.unpause({ from: bouncer1 });
+
+          const events = watcher.get();
+          const { event, args } = events[0];
+          const { msgSender, poolContractAddress } = args;
+
+          event.should.be.equal("Unpause");
+          msgSender.should.be.equal(bouncer1);
+          poolContractAddress.should.be.equal(poolbase.address);
+        });
+      });
+    });
   }
 );

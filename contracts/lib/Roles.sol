@@ -38,7 +38,7 @@ library Roles {
     view
     internal
   {
-    require(has(role, addr));
+    require(has(role, addr), "Needs to have the correct role to call this function");
   }
 
   /**

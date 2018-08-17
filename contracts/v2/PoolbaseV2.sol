@@ -128,7 +128,8 @@ contract PoolbaseV2 is SignatureBouncer {
             _poolbaseFee[1] != 0 &&
             _adminPayoutWallet != address(0) &&
             _poolbasePayoutWallet != address(0) &&
-            _eventEmitter != address(0), "Global variables should have not been set before and params variables cannot be empty but payoutWallet"
+            _eventEmitter != address(0), 
+            "Global variables should have not been set before and params variables cannot be empty but payoutWallet"
         );
 
         maxAllocation = _maxAllocation;

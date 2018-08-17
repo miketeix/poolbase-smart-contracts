@@ -161,12 +161,92 @@ contract(
       });
     });
 
-    describe("poobase clone factory contract deployment", () => {
+    describe("poolbase clone factory contract deployment", () => {
       beforeEach(async () => {
         await poolbaseCloneFactory.setPoolbasePayoutWallet(
           poolbasePayoutWallet
         );
         await poolbaseCloneFactory.setPoolbaseFee([1, 2]);
+      });
+
+      it("does not matter whehter libraryAddress reference has values initialized, the factory produces a clone from how the libraryAddress is originally", async () => {
+        await poolbase.init(
+          new BigNumber(100),
+          adminPoolFee,
+          [1, 2],
+          isAdminFeeInWei,
+          payoutWallet,
+          adminPayoutWallet,
+          poolbasePayoutWallet,
+          eventEmitterContract,
+          [admin, admin2],
+          { from: owner }
+        );
+
+        const { logs } = await poolbaseCloneFactory.create(
+          maxAllocation,
+          adminPoolFee,
+          isAdminFeeInWei,
+          payoutWallet,
+          adminPayoutWallet,
+          eventEmitterContract,
+          [admin, admin2],
+          { from: owner }
+        );
+
+        const { args } = logs[0];
+        const { instantiation } = args;
+
+        const deployedPoolBaseFromFactory = Poolbase.at(instantiation);
+
+        const maxAllocationFromDeployedPoolbaseFromFactory = await deployedPoolBaseFromFactory.maxAllocation();
+        maxAllocationFromDeployedPoolbaseFromFactory.should.be.bignumber.equal(
+          maxAllocation
+        );
+
+        const maxAllocationFromLibrary = await poolbase.maxAllocation();
+        maxAllocationFromLibrary.should.be.bignumber.equal(100);
+      });
+
+      it("matters when librayAddress has initialized values before being part of the cloneFactory", async () => {
+        const newPoolbase = await Poolbase.new([bouncer, bouncer2]);
+        await newPoolbase.init(
+          new BigNumber(100),
+          adminPoolFee,
+          [1, 2],
+          isAdminFeeInWei,
+          payoutWallet,
+          adminPayoutWallet,
+          poolbasePayoutWallet,
+          eventEmitterContract,
+          [admin, admin2],
+          { from: owner }
+        );
+
+        const newPoolbaseCloneFactory = await PoolbaseCloneFactory.new(
+          newPoolbase.address
+        );
+
+        // here the clone factory does not work anymore as expected
+        // throws the error Error: VM Exception while processing transaction: revert Global variables should have not been set before and params variables cannot be empty but payoutWallet
+        try {
+          await newPoolbaseCloneFactory.create(
+            maxAllocation,
+            adminPoolFee,
+            isAdminFeeInWei,
+            payoutWallet,
+            adminPayoutWallet,
+            eventEmitterContract,
+            [admin, admin2],
+            { from: owner }
+          );
+          assert.fail();
+        } catch (e) {
+          ensuresException(e);
+        }
+
+        const maxAllocationFromLibrary = await newPoolbase.maxAllocation();
+        maxAllocationFromLibrary.should.be.bignumber.equal(100);
       });
 
       it("deploys new poolbase contract", async () => {
@@ -211,7 +291,7 @@ contract(
       });
 
       it("registers the number of poolbase contract deployed per address", async () => {
-        const poolbase = await poolbaseCloneFactory.create(
+        await poolbaseCloneFactory.create(
           maxAllocation,
           adminPoolFee,
           isAdminFeeInWei,
@@ -227,7 +307,7 @@ contract(
         );
         numberOfInstantiations.should.be.bignumber.equal(1);
 
-        const poolbase2 = await poolbaseCloneFactory.create(
+        await poolbaseCloneFactory.create(
           maxAllocation,
           adminPoolFee,
           isAdminFeeInWei,
