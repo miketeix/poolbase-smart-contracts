@@ -89,7 +89,7 @@ contract(
         );
       });
 
-      it("does NOT allow a owner to set empty address as a super bouncer", async () => {
+      it("does NOT allow a owner to set empty address for payoutWallet", async () => {
         try {
           await poolbaseCloneFactory.setPoolbasePayoutWallet(
             "0x0000000000000000000000000000000000000000",
@@ -135,7 +135,7 @@ contract(
         poolbaseFee[1].should.be.bignumber.equal(0);
       });
 
-      it("does NOT allow a owner to set empty address as a super bouncer", async () => {
+      it("does NOT allow a owner to set empty address for poolbas fee", async () => {
         try {
           await poolbaseCloneFactory.setPoolbaseFee([0, 2], {
             from: owner

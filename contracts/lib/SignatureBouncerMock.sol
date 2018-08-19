@@ -1,6 +1,6 @@
 pragma solidity 0.4.24;
 
-import "./SignatureBouncer2.sol";
+import "./SignatureBouncerV2.sol";
 
 
 contract SignatureBouncerMock is SignatureBouncer {

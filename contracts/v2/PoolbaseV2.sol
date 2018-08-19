@@ -2,7 +2,7 @@ pragma solidity 0.4.24;
 
 import "../PoolbaseEventEmitter.sol";
 import "../lib/SafeMath.sol";
-import "../lib/SignatureBouncer.sol";
+import "../lib/SignatureBouncerV2.sol";
 import "../lib/ERC20.sol";
 import "./PoolbaseInterface.sol";
 
@@ -47,18 +47,6 @@ contract PoolbaseV2 is SignatureBouncer {
     PoolbaseEventEmitter public eventEmitter;
 
     /*
-     * @dev Constructor function of Poolbase contract
-     * @param _superBouncers List of super admin previlege addresses. They belong to Poolbase.io
-     */
-    constructor(
-        address[] _superBouncers
-    )
-        public
-        SignatureBouncer(_superBouncers)
-    {}
-
-
-    /*
      *  Pausing Mechanism
     */
     /**
@@ -87,6 +75,7 @@ contract PoolbaseV2 is SignatureBouncer {
 
     /*
      * @dev init function to initialize a contract
+     * @param _bouncers List of poolbase bouncers
      * @param _maxAllocation Pool cap in wei
      * @param _adminPoolFee Percentage from the pool that goes to master admin pool
      * @param _poolbaseFee Percentage from the pool that goes to Poolbase
@@ -99,6 +88,7 @@ contract PoolbaseV2 is SignatureBouncer {
      * @param _admins List of pool admin addresses.
      */
     function init(
+        address[] _bouncers,
         uint256 _maxAllocation,
         uint256[2] _adminPoolFee,
         uint256[2] _poolbaseFee,
@@ -141,10 +131,14 @@ contract PoolbaseV2 is SignatureBouncer {
         poolbasePayoutWallet = _poolbasePayoutWallet;
         eventEmitter = PoolbaseEventEmitter(_eventEmitter);
 
+        for (uint8 i = 0; i < _bouncers.length; i++) {
+            addRole(_bouncers[i], ROLE_BOUNCER);
+        }
+
         addRole(msg.sender, ROLE_ADMIN); // add msg.sender as poolAdmin
-        for (uint8 i = 0; i < _admins.length; i++) {
+        for (uint8 j = 0; j < _admins.length; j++) {
             // add addresses within the array as pool admins
-            addRole(_admins[i], ROLE_ADMIN);
+            addRole(_admins[j], ROLE_ADMIN);
         }
 
         state = State.Active;

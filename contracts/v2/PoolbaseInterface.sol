@@ -4,9 +4,10 @@ pragma solidity 0.4.24;
 /**
  * @title Poolbase contract interface
  */
-interface PoolbaseInterface {
+contract PoolbaseInterface {
     function init
     (
+        address[] _bouncers,
         uint256 _maxAllocation,
         uint256[2] _adminPoolFee,
         uint256[2] _poolbaseFee,
@@ -18,4 +19,7 @@ interface PoolbaseInterface {
         address[] _admins
     )
     external;
+
+    function addBouncer(address _bouncer) public;
+    function removeBouncer(address _bouncer) public;
 }

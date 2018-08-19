@@ -10,6 +10,7 @@ contract PoolbaseCloneFactory is Ownable, CloneFactory {
     using SafeMath for uint256;
     // poolbase contract address for cloning purposes
     address public libraryAddress;
+    address[] public superBouncers;
     address public poolbasePayoutWallet;
     uint256[2] public poolbaseFee;
 
@@ -34,6 +35,33 @@ contract PoolbaseCloneFactory is Ownable, CloneFactory {
         require(_libraryAddress != address(0));
         libraryAddress = _libraryAddress;
     }
+    
+    /**
+     * @dev Add super bouncers. Only two are allowed to exist at any time
+     * @param _superBouncers List of super bouncers that belong to poolbase.io
+     */
+    function setSuperBouncers(address[2] _superBouncers) external onlyOwner {
+        require(_superBouncers[0] != address(0) && _superBouncers[1] != address(0), "_superBouncers addresses cannot be empty");
+        superBouncers = _superBouncers;
+    }
+    
+    /**
+     * @dev Add super bouncers to a poolbase contract
+     * @param _superBouncer Super bouncer that belong to poolbase.io
+     */
+    function addBouncersToAPool(address _superBouncer, address poolAddress) external onlyOwner {
+        require(_superBouncer != address(0), "_superBouncer addresse cannot be empty");
+        PoolbaseInterface(poolAddress).addBouncer(_superBouncer);
+    }
+    
+    /**
+     * @dev Remove super bouncers to a poolbase contract
+     * @param _superBouncer Super bouncer that belong to poolbase.io
+     */
+    function removeBouncersToAPool(address _superBouncer, address poolAddress) external onlyOwner {
+        require(_superBouncer != address(0), "_superBouncer addresse cannot be empty");
+        PoolbaseInterface(poolAddress).removeBouncer(_superBouncer);
+    }
 
     /**
      * @dev Add poolbase payout wallet. Only two are allowed to exist at any time
@@ -52,6 +80,14 @@ contract PoolbaseCloneFactory is Ownable, CloneFactory {
     function setPoolbaseFee(uint256[2] _poolbaseFee) external onlyOwner {
         require(_poolbaseFee[0] != 0 && _poolbaseFee[1] != 0);
         poolbaseFee = _poolbaseFee;
+    }
+
+
+    /**
+     * @dev Function getter for superBouncers
+     */
+    function getSuperBouncers() external view returns(address, address) {
+        return (superBouncers[0], superBouncers[1]);
     }
 
     /**
@@ -106,6 +142,7 @@ contract PoolbaseCloneFactory is Ownable, CloneFactory {
     {
         address pool = createClone(libraryAddress);
         PoolbaseInterface(pool).init(
+            superBouncers,
             _maxAllocation,
             _adminPoolFee,
             poolbaseFee,
