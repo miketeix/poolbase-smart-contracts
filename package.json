@@ -35,9 +35,8 @@
         "eslint-plugin-promise": "^3.6.0",
         "eslint-plugin-standard": "^2.3.1",
         "ethereumjs-util": "^5.1.2",
-        "truffle-contract": "^3.0.5",
+        "ganache-cli": "^6.1.8",
         "solidity-coverage": "^0.5.5",
-        "ganache-cli": "^6.1.6",
-        "truffle": "^4.1.13"
+        "truffle": "^4.1.14"
     }
 }
