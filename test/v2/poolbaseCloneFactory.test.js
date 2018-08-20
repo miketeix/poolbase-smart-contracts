@@ -1,6 +1,6 @@
 const { ensuresException } = require("../helpers/utils");
 const PoolbaseCloneFactory = artifacts.require("./PoolbaseCloneFactory.sol");
-const Poolbase = artifacts.require("./PoolbaseV2.sol");
+const Poolbase = artifacts.require("./Poolbase.sol");
 
 const BigNumber = web3.BigNumber;
 
@@ -23,15 +23,12 @@ contract(
     const adminPoolFee = [1, 2];
 
     beforeEach(async () => {
-      poolbase = await Poolbase.new([bouncer, bouncer2]);
+      poolbase = await Poolbase.new();
       poolbaseCloneFactory = await PoolbaseCloneFactory.new(poolbase.address);
+      newPoolbase = await Poolbase.new();
     });
 
     describe("#setLibraryAddress", () => {
-      beforeEach(async () => {
-        newPoolbase = await Poolbase.new([bouncer, bouncer2]);
-      });
-
       it("does NOT allow a NON owner to set new library address", async () => {
         try {
           await poolbaseCloneFactory.setLibraryAddress(newPoolbase.address, {
@@ -68,6 +65,59 @@ contract(
 
         const libraryAddress = await poolbaseCloneFactory.libraryAddress();
         libraryAddress.should.be.equal(newPoolbase.address);
+      });
+    });
+
+    describe("#setSuperBouncers", () => {
+      it("does NOT allow a NON owner to set superBouncers", async () => {
+        const bouncers = [bouncer, bouncer2];
+        // possible bug with web3 as it cannot catch exception when func params is an array of addresses
+        try {
+          await poolbaseCloneFactory.setSuperBouncers(bouncers, {
+            from: admin
+          });
+          assert.fail();
+        } catch (e) {
+          ensuresException(e);
+        }
+        const superBouncers = await poolbaseCloneFactory.getSuperBouncers();
+        superBouncers[0].should.be.equal(
+          "0x0000000000000000000000000000000000000000"
+        );
+        superBouncers[1].should.be.equal(
+          "0x0000000000000000000000000000000000000000"
+        );
+      });
+
+      it("does NOT allow a owner to set empty address as a super bouncer", async () => {
+        // possible bug with web3 as it cannot catch exception when func params is an array of addresses
+        try {
+          await poolbaseCloneFactory.setSuperBouncers(
+            ["0x0000000000000000000000000000000000000000", bouncer2],
+            { from: owner }
+          );
+          assert.fail();
+        } catch (e) {
+          ensuresException(e);
+        }
+        const superBouncers = await poolbaseCloneFactory.getSuperBouncers();
+        superBouncers[0].should.be.equal(
+          "0x0000000000000000000000000000000000000000"
+        );
+        superBouncers[1].should.be.equal(
+          "0x0000000000000000000000000000000000000000"
+        );
+      });
+
+      it("allows owner to set superBouncers", async () => {
+        await poolbaseCloneFactory.setSuperBouncers([bouncer, bouncer2], {
+          from: owner
+        });
+
+        const superBouncers = await poolbaseCloneFactory.getSuperBouncers();
+
+        superBouncers[0].should.be.equal(bouncer);
+        superBouncers[1].should.be.equal(bouncer2);
       });
     });
 
@@ -163,14 +213,18 @@ contract(
 
     describe("poolbase clone factory contract deployment", () => {
       beforeEach(async () => {
+        await poolbaseCloneFactory.setSuperBouncers([bouncer, bouncer2]);
+
         await poolbaseCloneFactory.setPoolbasePayoutWallet(
           poolbasePayoutWallet
         );
+
         await poolbaseCloneFactory.setPoolbaseFee([1, 2]);
       });
 
-      it("does not matter whehter libraryAddress reference has values initialized, the factory produces a clone from how the libraryAddress is originally", async () => {
+      it("does not matter whether libraryAddress reference has values initialized, the factory produces a clone from how the libraryAddress was originally deployed", async () => {
         await poolbase.init(
+          [bouncer, bouncer2],
           new BigNumber(100),
           adminPoolFee,
           [1, 2],
@@ -209,8 +263,8 @@ contract(
       });
 
       it("matters when librayAddress has initialized values before being part of the cloneFactory", async () => {
-        const newPoolbase = await Poolbase.new([bouncer, bouncer2]);
         await newPoolbase.init(
+          [bouncer, bouncer2],
           new BigNumber(100),
           adminPoolFee,
           [1, 2],
@@ -250,7 +304,7 @@ contract(
       });
 
       it("deploys new poolbase contract", async () => {
-        const poolTx = await poolbaseCloneFactory.create.call(
+        const poolTx = await poolbaseCloneFactory.create(
           maxAllocation,
           adminPoolFee,
           isAdminFeeInWei,
@@ -261,6 +315,20 @@ contract(
         );
 
         expect(poolTx).to.exist;
+
+        const poolAddress = await poolbaseCloneFactory.instantiations.call(
+          owner,
+          0
+        );
+
+        const poolInstance = Poolbase.at(poolAddress);
+        const maxAllocationFromLibrary = await poolInstance.maxAllocation();
+        maxAllocationFromLibrary.should.be.bignumber.equal(maxAllocation);
+
+        const adminPayoutWalletFromLibrary = await poolInstance.adminPayoutWallet();
+        adminPayoutWalletFromLibrary.should.be.bignumber.equal(
+          adminPayoutWallet
+        );
       });
 
       it("emits ContractInstantiation", async () => {
