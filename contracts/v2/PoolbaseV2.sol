@@ -118,7 +118,7 @@ contract PoolbaseV2 is SignatureBouncer {
             _poolbaseFee[1] != 0 &&
             _adminPayoutWallet != address(0) &&
             _poolbasePayoutWallet != address(0) &&
-            _eventEmitter != address(0), 
+            _eventEmitter != address(0),
             "Global variables should have not been set before and params variables cannot be empty but payoutWallet"
         );
 
@@ -243,6 +243,7 @@ contract PoolbaseV2 is SignatureBouncer {
     function setAdminPayoutWallet(address _newAdminPayoutWallet) external onlyRole(ROLE_ADMIN) whenNotPaused {
         require(_newAdminPayoutWallet != 0);
         adminPayoutWallet = _newAdminPayoutWallet;
+        eventEmitter.logSetAdminPayoutWalletEvent(address(this), msg.sender, adminPayoutWallet);
     }
 
     /**
@@ -254,6 +255,7 @@ contract PoolbaseV2 is SignatureBouncer {
         require(_newAdminPoolFee[0] != 0 && _newAdminPoolFee[1] != 0);
         adminPoolFee[0] = _newAdminPoolFee[0];
         adminPoolFee[1] = _newAdminPoolFee[1];
+        eventEmitter.logSetAdminPoolFeeEvent(address(this), msg.sender, _newAdminPoolFee);
     }
 
     /**
@@ -274,6 +276,7 @@ contract PoolbaseV2 is SignatureBouncer {
     function changeMaxAllocation(uint256 _newMaxAllocation) external onlyRole(ROLE_ADMIN) whenNotPaused {
         require(_newMaxAllocation != 0);
         maxAllocation = _newMaxAllocation;
+        eventEmitter.logChangeMaxAllocationEvent(address(this), msg.sender, maxAllocation);
     }
 
     /*

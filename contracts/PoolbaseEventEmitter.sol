@@ -10,6 +10,9 @@ contract PoolbaseEventEmitter {
     event Unpause(address poolContractAddress, address msgSender);
     event Refunded(address poolContractAddress, address indexed msgSender, uint256 weiAmount);
     event TokenClaimed(address poolContractAddress, address indexed msgSender, uint256 amount, address token);
+    event AdminPayoutWalletSet(address poolContractAddress, address indexed msgSender, address adminPayoutWallet);
+    event AdminPoolFeeSet(address poolContractAddress, address indexed msgSender, uint256[2] adminPoolFee );
+    event MaxAllocationChanged(address poolContractAddress, address indexed msgSender, uint256 maxAllocation);
 
     function logContributionEvent
     (
@@ -48,5 +51,17 @@ contract PoolbaseEventEmitter {
 
     function logTokenClaimedEvent(address poolContractAddress, address _msgSender, uint256 _amount, address _token) public {
         emit TokenClaimed(poolContractAddress, _msgSender, _amount, _token);
+    }
+
+    function logSetAdminPayoutWalletEvent(address poolContractAddress, address _msgSender, address _adminPayoutWallet) public {
+        emit AdminPayoutWalletSet(poolContractAddress, _msgSender, _adminPayoutWallet);
+    }
+
+    function logSetAdminPoolFeeEvent(address poolContractAddress, address _msgSender, uint256[2] _adminPoolFee) public {
+        emit AdminPoolFeeSet(poolContractAddress, _msgSender, _adminPoolFee);
+    }
+
+    function logChangeMaxAllocationEvent(address poolContractAddress, address _msgSender, uint256 maxAllocation) public {
+        emit MaxAllocationChanged(poolContractAddress, _msgSender, maxAllocation);
     }
 }
