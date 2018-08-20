@@ -3,14 +3,12 @@ pragma solidity 0.4.24;
 import "./PoolbaseInterface.sol";
 import "./CloneFactory.sol";
 import "../lib/Ownable.sol";
-import "../lib/SafeMath.sol";
 
 
 contract PoolbaseCloneFactory is Ownable, CloneFactory {
-    using SafeMath for uint256;
     // poolbase contract address for cloning purposes
     address public libraryAddress;
-    address[] public superBouncers;
+    address[2] public superBouncers;
     address public poolbasePayoutWallet;
     uint256[2] public poolbaseFee;
 
@@ -20,29 +18,30 @@ contract PoolbaseCloneFactory is Ownable, CloneFactory {
     event ContractInstantiation(address msgSender, address instantiation, bytes32 hashMessage);
 
     // set poolbase contract clone on deployment
-    // NOTE: superBouncers, addresses that belonng to Poolbase, must be set in the library/poolbase clone level
     // i.e. upon Poolbase deployment
     constructor(address _libraryAddress) public {
+        require(_libraryAddress != address(0), "_libraryAddress cannot be empty");
         libraryAddress = _libraryAddress;
     }
 
    /**
-    * @dev Have the option of updating the poolbase contract for cloning
-    * @param _libraryAddress Address for new contract. Note that superBouncers will be set
-    * in the _libraryAddress deployment
+    * @dev Have the option of updating the poolbase contract for cloning purposes
+    * @param _libraryAddress Address for new contract
     */
     function setLibraryAddress(address _libraryAddress) external onlyOwner {
-        require(_libraryAddress != address(0));
+        require(_libraryAddress != address(0), "_libraryAddress cannot be empty");
         libraryAddress = _libraryAddress;
     }
     
     /**
-     * @dev Add super bouncers. Only two are allowed to exist at any time
+     * @dev Add super bouncers to factory. 
+     * Only two are allowed to exist at any time. These will be added to a pool by default every time a new pool is created
      * @param _superBouncers List of super bouncers that belong to poolbase.io
      */
-    function setSuperBouncers(address[2] _superBouncers) external onlyOwner {
+    function setSuperBouncers(address[] _superBouncers) external onlyOwner {
         require(_superBouncers[0] != address(0) && _superBouncers[1] != address(0), "_superBouncers addresses cannot be empty");
-        superBouncers = _superBouncers;
+        superBouncers[0] = _superBouncers[0];
+        superBouncers[1] = _superBouncers[1];
     }
     
     /**
@@ -59,7 +58,7 @@ contract PoolbaseCloneFactory is Ownable, CloneFactory {
      * @param _superBouncer Super bouncer that belong to poolbase.io
      */
     function removeBouncersToAPool(address _superBouncer, address poolAddress) external onlyOwner {
-        require(_superBouncer != address(0), "_superBouncer addresse cannot be empty");
+        require(_superBouncer != address(0), "_superBouncer address cannot be empty");
         PoolbaseInterface(poolAddress).removeBouncer(_superBouncer);
     }
 
@@ -68,7 +67,7 @@ contract PoolbaseCloneFactory is Ownable, CloneFactory {
      * @param _poolbasePayoutWallet Address of wallet that belongs to Poolbase
      */
     function setPoolbasePayoutWallet(address _poolbasePayoutWallet) external onlyOwner {
-        require(_poolbasePayoutWallet != address(0));
+        require(_poolbasePayoutWallet != address(0), "_poolbasePayoutWallet address cannot be empty");
         poolbasePayoutWallet = _poolbasePayoutWallet;
     }
 
@@ -78,10 +77,9 @@ contract PoolbaseCloneFactory is Ownable, CloneFactory {
      * e.g. 1/2 is [1,2]
      */
     function setPoolbaseFee(uint256[2] _poolbaseFee) external onlyOwner {
-        require(_poolbaseFee[0] != 0 && _poolbaseFee[1] != 0);
+        require(_poolbaseFee[0] != 0 && _poolbaseFee[1] != 0, "_poolbaseFee numbers cannot be zero");
         poolbaseFee = _poolbaseFee;
     }
-
 
     /**
      * @dev Function getter for superBouncers

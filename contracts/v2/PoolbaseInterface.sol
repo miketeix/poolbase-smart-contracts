@@ -7,7 +7,7 @@ pragma solidity 0.4.24;
 contract PoolbaseInterface {
     function init
     (
-        address[] _bouncers,
+        address[2] _bouncers,
         uint256 _maxAllocation,
         uint256[2] _adminPoolFee,
         uint256[2] _poolbaseFee,

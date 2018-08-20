@@ -2,12 +2,12 @@ pragma solidity 0.4.24;
 
 import "../PoolbaseEventEmitter.sol";
 import "../lib/SafeMath.sol";
-import "../lib/SignatureBouncerV2.sol";
+import "../lib/SignatureBouncer.sol";
 import "../lib/ERC20.sol";
 import "./PoolbaseInterface.sol";
 
 
-contract PoolbaseV2 is SignatureBouncer {
+contract Poolbase is SignatureBouncer {
     using SafeMath for uint256;
     // global variables
     string public constant ROLE_ADMIN = "admin";
@@ -88,7 +88,7 @@ contract PoolbaseV2 is SignatureBouncer {
      * @param _admins List of pool admin addresses.
      */
     function init(
-        address[] _bouncers,
+        address[2] _bouncers,
         uint256 _maxAllocation,
         uint256[2] _adminPoolFee,
         uint256[2] _poolbaseFee,
@@ -110,7 +110,10 @@ contract PoolbaseV2 is SignatureBouncer {
             payoutWallet == address(0) &&
             adminPayoutWallet == address(0) &&
             poolbasePayoutWallet == address(0) &&
-            eventEmitter == address(0) &&
+            eventEmitter == address(0),
+            "Global variables should have not been set before"
+        );
+        require(
             _maxAllocation != 0 &&
             _adminPoolFee[0] != 0 &&
             _adminPoolFee[1] != 0 &&
@@ -119,7 +122,7 @@ contract PoolbaseV2 is SignatureBouncer {
             _adminPayoutWallet != address(0) &&
             _poolbasePayoutWallet != address(0) &&
             _eventEmitter != address(0),
-            "Global variables should have not been set before and params variables cannot be empty but payoutWallet"
+            "params variables cannot be empty but payoutWallet"
         );
 
         maxAllocation = _maxAllocation;
