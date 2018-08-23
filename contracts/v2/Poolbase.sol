@@ -134,11 +134,12 @@ contract Poolbase is SignatureBouncer {
         poolbasePayoutWallet = _poolbasePayoutWallet;
         eventEmitter = PoolbaseEventEmitter(_eventEmitter);
 
+        addRole(msg.sender, ROLE_BOUNCER); // adds msg.sender (poolbaseCloneFactory) as bouncer
         for (uint8 i = 0; i < _bouncers.length; i++) {
             addRole(_bouncers[i], ROLE_BOUNCER);
         }
-
-        addRole(msg.sender, ROLE_ADMIN); // add msg.sender as poolAdmin
+        
+        addRole(tx.origin, ROLE_ADMIN); // add poolbase creator as an admin
         for (uint8 j = 0; j < _admins.length; j++) {
             // add addresses within the array as pool admins
             addRole(_admins[j], ROLE_ADMIN);

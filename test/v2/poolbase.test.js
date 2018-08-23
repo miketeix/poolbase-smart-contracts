@@ -41,7 +41,8 @@ contract(
           adminPayoutWallet,
           poolbasePayoutWallet,
           poolbaseEventEmitter.address,
-          [admin1, admin2]
+          [admin1, admin2],
+          { from: owner }
         );
       });
 
@@ -54,11 +55,18 @@ contract(
         const isBouncer2 = await poolbase.hasRole.call(bouncer2, roleBouncer);
         isBouncer2.should.be.true;
 
-        const isBouncer3 = await poolbase.hasRole.call(owner, roleBouncer);
+        const isBouncer3 = await poolbase.hasRole.call(admin1, roleBouncer);
         isBouncer3.should.be.false;
 
-        const isBouncer4 = await poolbase.hasRole.call(admin1, roleBouncer);
+        const isBouncer4 = await poolbase.hasRole.call(admin2, roleBouncer);
         isBouncer4.should.be.false;
+      });
+
+      it("sets poolbase creator as bouncer", async () => {
+        const roleBouncer = await poolbase.ROLE_BOUNCER();
+
+        const isBouncer = await poolbase.hasRole(owner, roleBouncer);
+        isBouncer.should.be.true;
       });
 
       it("sets the pool maxAllocation", async () => {
@@ -107,13 +115,20 @@ contract(
       });
 
       it("sets admins", async () => {
-        const roleAmind = await poolbase.ROLE_ADMIN();
+        const roleAdmin = await poolbase.ROLE_ADMIN();
 
-        const isAdmin1 = await poolbase.hasRole.call(admin1, roleAmind);
+        const isAdmin1 = await poolbase.hasRole.call(admin1, roleAdmin);
         isAdmin1.should.be.true;
 
-        const isAdmin2 = await poolbase.hasRole.call(admin2, roleAmind);
+        const isAdmin2 = await poolbase.hasRole.call(admin2, roleAdmin);
         isAdmin2.should.be.true;
+      });
+
+      it("sets tx.origin as an admin", async () => {
+        const roleAdmin = await poolbase.ROLE_ADMIN();
+
+        const isAdmin = await poolbase.hasRole.call(owner, roleAdmin);
+        isAdmin.should.be.true;
       });
 
       it("cannot call init again once initial values are set", async () => {
@@ -291,6 +306,45 @@ contract(
           event.should.be.equal("Unpause");
           msgSender.should.be.equal(bouncer1);
           poolContractAddress.should.be.equal(poolbase.address);
+        });
+      });
+
+      describe.only("#emergencySetStateToRefunding", () => {
+        it("does not set state to refunding when called by a non-poolbase-bouncer", async () => {
+          // enum State { Active, Refunding, Closed, TokenPayout }
+          let currentState = await poolbase.state();
+          currentState.should.be.bignumber.equal(0); // Active
+
+          try {
+            await poolbase.emergencySetStateToRefunding({
+              from: admin1
+            });
+            assert.fail();
+          } catch (e) {
+            ensuresException(e);
+          }
+
+          currentState = await poolbase.state();
+          currentState.should.be.bignumber.equal(0); // Active
+
+          await poolbase.emergencySetStateToRefunding({
+            from: bouncer1
+          });
+
+          currentState = await poolbase.state();
+          currentState.should.be.bignumber.equal(1); // Refunding
+        });
+
+        it("sets state to refunding", async () => {
+          let currentState = await poolbase.state();
+          currentState.should.be.bignumber.equal(0); // Active
+
+          await poolbase.emergencySetStateToRefunding({
+            from: bouncer1
+          });
+
+          currentState = await poolbase.state();
+          currentState.should.be.bignumber.equal(1); // Refunding
         });
       });
     });

@@ -32,9 +32,9 @@ contract PoolbaseCloneFactory is Ownable, CloneFactory {
         require(_libraryAddress != address(0), "_libraryAddress cannot be empty");
         libraryAddress = _libraryAddress;
     }
-    
+
     /**
-     * @dev Add super bouncers to factory. 
+     * @dev Add super bouncers to factory.
      * Only two are allowed to exist at any time. These will be added to a pool by default every time a new pool is created
      * @param _superBouncers List of super bouncers that belong to poolbase.io
      */
@@ -43,7 +43,7 @@ contract PoolbaseCloneFactory is Ownable, CloneFactory {
         superBouncers[0] = _superBouncers[0];
         superBouncers[1] = _superBouncers[1];
     }
-    
+
     /**
      * @dev Add super bouncers to a poolbase contract
      * @param _superBouncer Super bouncer that belong to poolbase.io
@@ -52,7 +52,7 @@ contract PoolbaseCloneFactory is Ownable, CloneFactory {
         require(_superBouncer != address(0), "_superBouncer addresse cannot be empty");
         PoolbaseInterface(poolAddress).addBouncer(_superBouncer);
     }
-    
+
     /**
      * @dev Remove super bouncers to a poolbase contract
      * @param _superBouncer Super bouncer that belong to poolbase.io

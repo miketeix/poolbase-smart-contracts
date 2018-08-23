@@ -1,8 +1,8 @@
 // UPDATED VERSION FROM OPEN ZEPPELIN
 pragma solidity 0.4.24;
 
-import "./Ownable.sol";
 import "./RBAC.sol";
+import "./Ownable.sol";
 import "./ECRecovery.sol";
 /**
  * @title SignatureBouncer
@@ -66,24 +66,34 @@ contract SignatureBouncer is Ownable, RBAC {
   }
 
   /**
-   * @dev allows the owner to add additional bouncer addresses
+   * @dev requires contract owner or another bouncer
+   */
+  modifier onlyOwnerOrBouncer()
+  {
+    bool isBouncer = hasRole(msg.sender, ROLE_BOUNCER);
+    require(msg.sender == owner || isBouncer, "allows owner or another bouncer to call function");
+    _;
+  }
+
+  /**
+   * @dev allows the owner or bouncer to add additional bouncer addresses
    */
   function addBouncer(address _bouncer)
-    onlyOwner
+    onlyOwnerOrBouncer
     public
   {
-    require(_bouncer != address(0));
+    require(_bouncer != address(0), "_bouncer address cannot be empty");
     addRole(_bouncer, ROLE_BOUNCER);
   }
 
   /**
-   * @dev allows the owner to remove bouncer addresses
+   * @dev allows the owner or bouncer to remove bouncer addresses
    */
   function removeBouncer(address _bouncer)
-    onlyOwner
+    onlyOwnerOrBouncer
     public
   {
-    require(_bouncer != address(0));
+    require(_bouncer != address(0), "_bouncer address cannot be empty");
     removeRole(_bouncer, ROLE_BOUNCER);
   }
 
