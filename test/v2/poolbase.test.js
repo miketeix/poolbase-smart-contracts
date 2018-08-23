@@ -309,7 +309,7 @@ contract(
         });
       });
 
-      describe.only("#emergencySetStateToRefunding", () => {
+      describe("#emergencySetStateToRefunding", () => {
         it("does not set state to refunding when called by a non-poolbase-bouncer", async () => {
           // enum State { Active, Refunding, Closed, TokenPayout }
           let currentState = await poolbase.state();
@@ -345,6 +345,85 @@ contract(
 
           currentState = await poolbase.state();
           currentState.should.be.bignumber.equal(1); // Refunding
+        });
+      });
+
+      describe("#emergencyReceiveWeiFromPayoutAddress", () => {
+        it("does not receive wei when it is not from payoutWallet", async () => {
+          let poolbaseWeiBalance = await web3.eth.getBalance(poolbase.address);
+          poolbaseWeiBalance.should.be.bignumber.equal(0); // Active
+
+          try {
+            await poolbase.emergencyReceiveWeiFromPayoutAddress({
+              from: admin1,
+              value: ether(1)
+            });
+            assert.fail();
+          } catch (e) {
+            ensuresException(e);
+          }
+
+          poolbaseWeiBalance = await web3.eth.getBalance(poolbase.address);
+          poolbaseWeiBalance.should.be.bignumber.equal(0); // Active
+
+          await poolbase.emergencyReceiveWeiFromPayoutAddress({
+            from: payoutWallet,
+            value: ether(1)
+          });
+
+          poolbaseWeiBalance = await web3.eth.getBalance(poolbase.address);
+          poolbaseWeiBalance.should.be.bignumber.equal(ether(1));
+        });
+
+        it("sets state to refunding", async () => {
+          let poolbaseWeiBalance = await web3.eth.getBalance(poolbase.address);
+          poolbaseWeiBalance.should.be.bignumber.equal(0);
+
+          await poolbase.emergencyReceiveWeiFromPayoutAddress({
+            from: payoutWallet,
+            value: ether(1)
+          });
+
+          poolbaseWeiBalance = await web3.eth.getBalance(poolbase.address);
+          poolbaseWeiBalance.should.be.bignumber.equal(ether(1));
+        });
+      });
+
+      describe("#emergencyAcceptAllPayments", () => {
+        it("does not set emergency flag when called by a non-poolbase-bouncer", async () => {
+          let currentAcceptAllPayments = await poolbase.acceptAllPayments();
+          currentAcceptAllPayments.should.be.false;
+
+          try {
+            await poolbase.emergencyAcceptAllPayments(true, { from: admin1 });
+            assert.fail();
+          } catch (e) {
+            ensuresException(e);
+          }
+
+          currentAcceptAllPayments = await poolbase.acceptAllPayments();
+          currentAcceptAllPayments.should.be.false;
+
+          await poolbase.emergencyAcceptAllPayments(true, { from: bouncer1 });
+
+          currentAcceptAllPayments = await poolbase.acceptAllPayments();
+          currentAcceptAllPayments.should.be.true;
+        });
+
+        it("sets state to refunding", async () => {
+          let currentAcceptAllPayments = await poolbase.acceptAllPayments();
+          currentAcceptAllPayments.should.be.false;
+
+          await poolbase.emergencyAcceptAllPayments(true, { from: bouncer1 });
+
+          currentAcceptAllPayments = await poolbase.acceptAllPayments();
+          currentAcceptAllPayments.should.be.true;
+
+          // toggles back works
+          await poolbase.emergencyAcceptAllPayments(false, { from: bouncer1 });
+
+          currentAcceptAllPayments = await poolbase.acceptAllPayments();
+          currentAcceptAllPayments.should.be.false;
         });
       });
     });
