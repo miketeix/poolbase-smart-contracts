@@ -360,6 +360,7 @@ contract Poolbase is SignatureBouncer {
     function refund(bytes sig) external onlyValidSignature(sig) whenNotPaused {
         require(state == State.Active || state == State.Refunding);
         uint256 depositedValue = deposited[msg.sender];
+
         deposited[msg.sender] = 0;
         msg.sender.transfer(depositedValue);
         eventEmitter.logRefundedEvent(address(this), msg.sender, depositedValue);

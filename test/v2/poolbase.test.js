@@ -23,7 +23,7 @@ contract(
     newAdminPayoutWallet
   ]) => {
     let poolbase, poolbaseEventEmitter, token;
-    const maxAllocation = new BigNumber(200);
+    const maxAllocation = ether(200);
     const isAdminFeeInWei = true;
     const adminPoolFee = [1, 2];
     const poolbaseFee = [2, 5];
@@ -889,7 +889,7 @@ contract(
         });
       });
 
-      describe("#enableefunds", () => {
+      describe("#enableRefunds", () => {
         // enum State { Active, Refunding, Closed, TokenPayout }
         it("cannot accept calls from a non admin", async () => {
           await assertRevert(poolbase.enableRefunds({ from: bouncer1 }));
@@ -910,11 +910,7 @@ contract(
         it("requires state to be Active", async () => {
           await poolbase.adminClosesPool("0x0", "0x0", { from: admin1 });
 
-          await assertRevert(
-            poolbase.enableRefunds({
-              from: admin1
-            })
-          );
+          await assertRevert(poolbase.enableRefunds({ from: admin1 }));
           const poolbaseState = await poolbase.state();
           poolbaseState.should.be.bignumber.equal(2); // Closed
         });
@@ -944,7 +940,7 @@ contract(
       context("when using ERC20 tokens", () => {
         beforeEach(async () => {
           token = await TokenMock.new();
-          await token.transfer(poolbase.address, ether(1));
+          await token.transfer(poolbase.address, 1e18);
         });
 
         describe("#emergencyRemoveTokens", () => {
@@ -952,60 +948,57 @@ contract(
             await poolbase.vouchAsAdmin({ from: admin1 });
             await poolbase.vouchAsPoolBase({ from: bouncer1 });
             await assertRevert(
-              poolbase.emergencyRemoveTokens(
-                token.address,
-                bouncer1,
-                ether(1),
-                { from: bouncer1 }
-              )
+              poolbase.emergencyRemoveTokens(token.address, bouncer1, 1e18, {
+                from: bouncer1
+              })
             );
 
             const poolbaseBalance = await token.balanceOf(poolbase.address);
-
-            poolbaseBalance.should.be.bignumber.eq(ether(1));
+            poolbaseBalance.should.be.bignumber.eq(1e18);
           });
 
           it("cannot have empty beneficiary or zero value", async () => {
             await poolbase.vouchAsAdmin({ from: admin1 });
             await poolbase.vouchAsPoolBase({ from: bouncer1 });
             await assertRevert(
-              poolbase.emergencyRemoveTokens(token.address, "0x0", ether(1), {
+              poolbase.emergencyRemoveTokens(token.address, "0x0", 1e18, {
                 from: admin1
               })
             );
             await assertRevert(
-              poolbase.emergencyRemoveTokens(token.address, admin1, ether(0), {
+              poolbase.emergencyRemoveTokens(token.address, admin1, 0, {
                 from: admin1
               })
             );
-            const poolbaseBalance = await token.balanceOf(poolbase.address);
 
-            poolbaseBalance.should.be.bignumber.eq(ether(1));
+            const poolbaseBalance = await token.balanceOf(poolbase.address);
+            poolbaseBalance.should.be.bignumber.eq(1e18);
           });
+
           it("requires that all vouch flags to be set", async () => {
             await assertRevert(
-              poolbase.emergencyRemoveTokens(token.address, admin1, ether(1), {
+              poolbase.emergencyRemoveTokens(token.address, admin1, 1e18, {
                 from: admin1
               })
             );
-            const poolbaseBalance = await token.balanceOf(poolbase.address);
 
-            poolbaseBalance.should.be.bignumber.eq(ether(1));
+            const poolbaseBalance = await token.balanceOf(poolbase.address);
+            poolbaseBalance.should.be.bignumber.eq(1e18);
           });
+
           it("withdraws ERC20 token from contract", async () => {
             await poolbase.vouchAsAdmin({ from: admin1 });
             await poolbase.vouchAsPoolBase({ from: bouncer1 });
-            poolbase.emergencyRemoveTokens(token.address, admin1, ether(1), {
+            poolbase.emergencyRemoveTokens(token.address, admin1, 1e18, {
               from: admin1
             });
-            const poolbaseBalance = await token.balanceOf(poolbase.address);
 
-            poolbaseBalance.should.be.bignumber.eq(ether(0));
+            const poolbaseBalance = await token.balanceOf(poolbase.address);
+            poolbaseBalance.should.be.bignumber.eq(0);
           });
         });
       });
 
-  
       describe("#deposit", () => {
         let validSignatureInvestor1;
         beforeEach(async () => {
@@ -1015,36 +1008,143 @@ contract(
 
         it("requires state to be active", async () => {
           await poolbase.adminClosesPool("0x0", "0x0", { from: admin1 });
-          
+
           await assertRevert(
             poolbase.deposit(validSignatureInvestor1, {
-              from: investor1, value: new BigNumber(100)
+              from: investor1,
+              value: ether(10)
             })
           );
           const poolbaseState = await poolbase.state();
           poolbaseState.should.be.bignumber.equal(2); // Closed
         });
+
         it("requires valid signature signature", async () => {
           await assertRevert(
             poolbase.deposit(validSignatureInvestor1, {
-              from: investor2, value: new BigNumber(101)
+              from: investor2,
+              value: ether(10)
             })
           );
         });
-        it("requires payed ether smaller than maxAllocation", async () => {
+
+        it("requires contributed ether that is smaller than maxAllocation", async () => {
           await assertRevert(
             poolbase.deposit(validSignatureInvestor1, {
-              from: investor1, value: new BigNumber(201) //200 is max
+              from: investor1,
+              value: ether(201) //200 is max
             })
           );
         });
-        it("should add contribution to deposited", async () => {
+
+        it("should add user's contribution to deposited", async () => {
           await poolbase.deposit(validSignatureInvestor1, {
-            from: investor1, value: new BigNumber(100)
-          })
+            from: investor1,
+            value: ether(10)
+          });
+
           const deposited = await poolbase.deposited(investor1);
-        
-          deposited.should.be.bignumber.eq(new BigNumber(100));
+          deposited.should.be.bignumber.eq(ether(10));
+        });
+
+        it("emits ContributionMade event", async () => {
+          const watcher = poolbaseEventEmitter.ContributionMade();
+
+          await poolbase.deposit(validSignatureInvestor1, {
+            from: investor1,
+            value: ether(10)
+          });
+
+          const events = watcher.get();
+          const { event, args } = events[0];
+          const { msgSender, poolContractAddress, contribution } = args;
+
+          event.should.be.equal("ContributionMade");
+          msgSender.should.be.equal(investor1);
+          poolContractAddress.should.be.equal(poolbase.address);
+          contribution.should.be.bignumber.eq(ether(10));
+        });
+      });
+
+      describe("#refund", () => {
+        let validSignatureInvestor1;
+        beforeEach(async () => {
+          const toSignInvestor1 = keccak256(poolbase.address, investor1);
+          validSignatureInvestor1 = web3.eth.sign(bouncer1, toSignInvestor1);
+
+          await poolbase.deposit(validSignatureInvestor1, {
+            from: investor1,
+            value: ether(10)
+          });
+        });
+
+        it("requires state to be active", async () => {
+          await poolbase.adminClosesPool("0x0", "0x0", { from: admin1 });
+          const poolbaseState = await poolbase.state();
+          poolbaseState.should.be.bignumber.equal(2); // Closed
+
+          await assertRevert(
+            poolbase.refund(validSignatureInvestor1, {
+              from: investor1
+            })
+          );
+
+          const deposited = await poolbase.deposited(investor1);
+          deposited.should.be.bignumber.eq(ether(10));
+          const investor1TokenBalance = await token.balanceOf(investor1);
+          investor1TokenBalance.should.be.bignumber.eq(0);
+        });
+
+        it("requires valid signature", async () => {
+          await assertRevert(
+            poolbase.refund(validSignatureInvestor1, {
+              from: investor2
+            })
+          );
+
+          const deposited = await poolbase.deposited(investor1);
+          deposited.should.be.bignumber.eq(ether(10));
+          const investor1TokenBalance = await token.balanceOf(investor1);
+          investor1TokenBalance.should.be.bignumber.eq(0);
+        });
+
+        it("refunds user's contribution setting the contribution to zero", async () => {
+          const investor1Balance = await web3.eth.getBalance(investor1);
+
+          await poolbase.refund(validSignatureInvestor1, {
+            from: investor1
+          });
+
+          const deposited = await poolbase.deposited(investor1);
+          deposited.should.be.bignumber.eq(0);
+
+          const investor1BalanceAfterRefunding = await web3.eth.getBalance(
+            investor1
+          );
+          // investor balance should have received its 10 ether from the contract after refund happened
+          investor1BalanceAfterRefunding
+            .toNumber()
+            .should.be.approximately(
+              investor1Balance.toNumber() + ether(10).toNumber(),
+              1e16
+            );
+        });
+
+        it("emits Refunded event", async () => {
+          const watcher = poolbaseEventEmitter.Refunded();
+
+          await poolbase.refund(validSignatureInvestor1, {
+            from: investor1
+          });
+
+          const events = watcher.get();
+          const { event, args } = events[0];
+          const { msgSender, poolContractAddress, weiAmount } = args;
+
+          event.should.be.equal("Refunded");
+          msgSender.should.be.equal(investor1);
+          poolContractAddress.should.be.equal(poolbase.address);
+          weiAmount.should.be.bignumber.eq(ether(10));
         });
       });
     });
