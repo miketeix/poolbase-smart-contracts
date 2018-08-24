@@ -346,12 +346,28 @@ contract(
           currentState = await poolbase.state();
           currentState.should.be.bignumber.equal(1); // Refunding
         });
+
+        it("emits RefundsEnabled event", async () => {
+          const watcher = poolbaseEventEmitter.RefundsEnabled();
+
+          await poolbase.emergencySetStateToRefunding({
+            from: bouncer1
+          });
+
+          const events = watcher.get();
+          const { event, args } = events[0];
+          const { msgSender, poolContractAddress } = args;
+
+          event.should.be.equal("RefundsEnabled");
+          msgSender.should.be.equal(bouncer1);
+          poolContractAddress.should.be.equal(poolbase.address);
+        });
       });
 
       describe("#emergencyReceiveWeiFromPayoutAddress", () => {
         it("does not receive wei when it is not from payoutWallet", async () => {
           let poolbaseWeiBalance = await web3.eth.getBalance(poolbase.address);
-          poolbaseWeiBalance.should.be.bignumber.equal(0); // Active
+          poolbaseWeiBalance.should.be.bignumber.equal(0);
 
           try {
             await poolbase.emergencyReceiveWeiFromPayoutAddress({
@@ -364,7 +380,7 @@ contract(
           }
 
           poolbaseWeiBalance = await web3.eth.getBalance(poolbase.address);
-          poolbaseWeiBalance.should.be.bignumber.equal(0); // Active
+          poolbaseWeiBalance.should.be.bignumber.equal(0);
 
           await poolbase.emergencyReceiveWeiFromPayoutAddress({
             from: payoutWallet,
@@ -375,7 +391,7 @@ contract(
           poolbaseWeiBalance.should.be.bignumber.equal(ether(1));
         });
 
-        it("sets state to refunding", async () => {
+        it("receives wei from payoutWallet", async () => {
           let poolbaseWeiBalance = await web3.eth.getBalance(poolbase.address);
           poolbaseWeiBalance.should.be.bignumber.equal(0);
 
@@ -410,20 +426,199 @@ contract(
           currentAcceptAllPayments.should.be.true;
         });
 
-        it("sets state to refunding", async () => {
+        it("sets emergency flag acceptAllPayments", async () => {
           let currentAcceptAllPayments = await poolbase.acceptAllPayments();
           currentAcceptAllPayments.should.be.false;
 
-          await poolbase.emergencyAcceptAllPayments(true, { from: bouncer1 });
+          await poolbase.emergencyAcceptAllPayments(true, {
+            from: bouncer1
+          });
 
           currentAcceptAllPayments = await poolbase.acceptAllPayments();
           currentAcceptAllPayments.should.be.true;
 
           // toggles back works
-          await poolbase.emergencyAcceptAllPayments(false, { from: bouncer1 });
+          await poolbase.emergencyAcceptAllPayments(false, {
+            from: bouncer1
+          });
 
           currentAcceptAllPayments = await poolbase.acceptAllPayments();
           currentAcceptAllPayments.should.be.false;
+        });
+      });
+
+      describe("#vouchAsPoolBase", () => {
+        it("does not set vouch flag when called by a non-poolbase-bouncer", async () => {
+          let isPoolbaseVouched = await poolbase.poolbaseVouched();
+          isPoolbaseVouched.should.be.false;
+
+          try {
+            await poolbase.vouchAsPoolBase({ from: admin1 });
+            assert.fail();
+          } catch (e) {
+            ensuresException(e);
+          }
+
+          isPoolbaseVouched = await poolbase.poolbaseVouched();
+          isPoolbaseVouched.should.be.false;
+
+          await poolbase.vouchAsPoolBase({ from: bouncer1 });
+
+          isPoolbaseVouched = await poolbase.poolbaseVouched();
+          isPoolbaseVouched.should.be.true;
+        });
+
+        it("sets poolbase vouch flag", async () => {
+          let isPoolbaseVouched = await poolbase.poolbaseVouched();
+          isPoolbaseVouched.should.be.false;
+
+          await poolbase.vouchAsPoolBase({ from: bouncer1 });
+
+          isPoolbaseVouched = await poolbase.poolbaseVouched();
+          isPoolbaseVouched.should.be.true;
+        });
+      });
+
+      describe("#vouchAsAdmin", () => {
+        it("does not set vouch flag when called by a non-admin", async () => {
+          let isAdminVouched = await poolbase.adminVouched();
+          isAdminVouched.should.be.false;
+
+          try {
+            await poolbase.vouchAsAdmin({ from: bouncer1 });
+            assert.fail();
+          } catch (e) {
+            ensuresException(e);
+          }
+
+          isAdminVouched = await poolbase.adminVouched();
+          isAdminVouched.should.be.false;
+
+          await poolbase.vouchAsAdmin({ from: admin1 });
+
+          isAdminVouched = await poolbase.adminVouched();
+          isAdminVouched.should.be.true;
+        });
+
+        it("sets admin vouch flag", async () => {
+          let isAdminVouched = await poolbase.adminVouched();
+          isAdminVouched.should.be.false;
+
+          await poolbase.vouchAsAdmin({ from: admin1 });
+
+          isAdminVouched = await poolbase.adminVouched();
+          isAdminVouched.should.be.true;
+        });
+      });
+
+      describe("#emergencyRemoveWei", () => {
+        beforeEach(async () => {
+          //receives 1 ether from payoutWallet
+          await poolbase.emergencyReceiveWeiFromPayoutAddress({
+            from: payoutWallet,
+            value: ether(1)
+          });
+        });
+
+        it("fails when a non-admin calls it", async () => {
+          try {
+            await poolbase.emergencyRemoveWei(bouncer1, ether(1), {
+              from: bouncer1
+            });
+            assert.fail();
+          } catch (e) {
+            ensuresException(e);
+          }
+
+          // still balance of 1 ether
+          let poolbaseWeiBalance = await web3.eth.getBalance(poolbase.address);
+          poolbaseWeiBalance.should.be.bignumber.equal(ether(1));
+        });
+
+        it("fails when params are empty", async () => {
+          try {
+            await poolbase.emergencyRemoveWei(bouncer1, 0, {
+              from: bouncer1
+            });
+            assert.fail();
+          } catch (e) {
+            ensuresException(e);
+          }
+
+          // another attempt with an empty params
+          try {
+            await poolbase.emergencyRemoveWei("0x00000000000", ether(1), {
+              from: bouncer1
+            });
+            assert.fail();
+          } catch (e) {
+            ensuresException(e);
+          }
+
+          // still balance of 1 ether
+          let poolbaseWeiBalance = await web3.eth.getBalance(poolbase.address);
+          poolbaseWeiBalance.should.be.bignumber.equal(ether(1));
+        });
+
+        it("does not remove wei from contract when vouches are not given", async () => {
+          // first attempt to remove ether from poolbase
+          try {
+            await poolbase.emergencyRemoveWei(admin1, ether(1), {
+              from: admin1
+            });
+            assert.fail();
+          } catch (e) {
+            ensuresException(e);
+          }
+
+          // still balance of 1 ether
+          let poolbaseWeiBalance = await web3.eth.getBalance(poolbase.address);
+          poolbaseWeiBalance.should.be.bignumber.equal(ether(1));
+
+          // vouch as admin
+          await poolbase.vouchAsAdmin({ from: admin1 });
+
+          // second attempt to remove ether from poolbase. Needs still one more vouch
+          try {
+            await poolbase.emergencyRemoveWei(admin1, ether(1), {
+              from: admin1
+            });
+            assert.fail();
+          } catch (e) {
+            ensuresException(e);
+          }
+
+          poolbaseWeiBalance = await web3.eth.getBalance(poolbase.address);
+          poolbaseWeiBalance.should.be.bignumber.equal(ether(1));
+
+          // vouch as poolbase
+          await poolbase.vouchAsPoolBase({ from: bouncer1 });
+
+          // third attempts all vouches set
+          await poolbase.emergencyRemoveWei(admin1, ether(1), {
+            from: admin1
+          });
+
+          // 1 ether removed from the poolbase contract
+          poolbaseWeiBalance = await web3.eth.getBalance(poolbase.address);
+          poolbaseWeiBalance.should.be.bignumber.equal(0);
+        });
+
+        it("is able to remove ether from poolbase when vouch flags are set", async () => {
+          let poolbaseWeiBalance = await web3.eth.getBalance(poolbase.address);
+          poolbaseWeiBalance.should.be.bignumber.equal(ether(1));
+
+          // vouch as admin
+          await poolbase.vouchAsAdmin({ from: admin1 });
+          // vouch as poolbase
+          await poolbase.vouchAsPoolBase({ from: bouncer1 });
+
+          await poolbase.emergencyRemoveWei(admin1, ether(1), {
+            from: admin1
+          });
+
+          poolbaseWeiBalance = await web3.eth.getBalance(poolbase.address);
+          poolbaseWeiBalance.should.be.bignumber.equal(0);
         });
       });
     });

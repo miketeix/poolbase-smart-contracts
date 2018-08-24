@@ -138,7 +138,7 @@ contract Poolbase is SignatureBouncer {
         for (uint8 i = 0; i < _bouncers.length; i++) {
             addRole(_bouncers[i], ROLE_BOUNCER);
         }
-        
+
         addRole(tx.origin, ROLE_ADMIN); // add poolbase creator as an admin
         for (uint8 j = 0; j < _admins.length; j++) {
             // add addresses within the array as pool admins
@@ -169,6 +169,7 @@ contract Poolbase is SignatureBouncer {
      */
     function emergencySetStateToRefunding() external onlyRole(ROLE_BOUNCER) {
         state = State.Refunding;
+        eventEmitter.logRefundsEnabledEvent(address(this), msg.sender);
     }
 
     /**
@@ -208,12 +209,20 @@ contract Poolbase is SignatureBouncer {
      * @dev emergency function to remove ether from contract. Must have vouches from both pool admin and poolbase
      */
     function emergencyRemoveWei(address beneficiary, uint256 _value) external onlyRole(ROLE_ADMIN) {
-        require(_value != 0 && poolbaseVouched && adminVouched);
+        require
+        (
+            beneficiary != address(0) &&
+            _value != 0 && poolbaseVouched &&
+            adminVouched,
+            "params should not be empty and vouches must be set"
+        );
+
         beneficiary.transfer(_value);
     }
 
     /**
-     * @dev emergency function to remove erc20 tokens from contract. Must have vouches from both pool admin and poolbase
+     * @dev emergency function to remove erc20 tokens from contract.
+     * Must have vouches from both pool admin and poolbase
      */
     function emergencyRemoveTokens
         (
@@ -224,7 +233,14 @@ contract Poolbase is SignatureBouncer {
             external
             onlyRole(ROLE_ADMIN)
     {
-        require(_value != 0 && poolbaseVouched && adminVouched);
+        require
+        (
+            beneficiary != address(0) &&
+            _value != 0 && poolbaseVouched &&
+            adminVouched,
+            "params should not be empty and vouches must be set"
+        );
+
         ERC20(_tokenAddress).transfer(beneficiary, _value);
     }
 
