@@ -1,4 +1,5 @@
 const Poolbase = artifacts.require("./Poolbase.sol");
+const TokenMock = artifacts.require("./TokenMock.sol");
 const PoolbaseEventEmitter = artifacts.require("./PoolbaseEventEmitter.sol");
 const BigNumber = web3.BigNumber;
 
@@ -21,7 +22,7 @@ contract(
     newPoolbasePayoutWallet,
     newAdminPayoutWallet
   ]) => {
-    let poolbase, poolbaseEventEmitter;
+    let poolbase, poolbaseEventEmitter, token;
     const maxAllocation = new BigNumber(200);
     const isAdminFeeInWei = true;
     const adminPoolFee = [1, 2];
@@ -625,28 +626,6 @@ contract(
         });
       });
 
-      // space for testing emergencyRemoveTokens
-
-      // function emergencyRemoveTokens
-      //   (
-      //   ERC20 _tokenAddress,
-      //   address beneficiary,
-      //   uint256 _value
-      //   )
-      // external
-      // onlyRole(ROLE_ADMIN)
-      // {
-      //   require
-      //     (
-      //     beneficiary != address(0) &&
-      //     _value != 0 && poolbaseVouched &&
-      //     adminVouched,
-      //     "params should not be empty and vouches must be set"
-      //     );
-
-      //   ERC20(_tokenAddress).transfer(beneficiary, _value);
-      // }
-
       describe("#setPoolbasePayoutWallet", () => {
         it("does NOT allow a NON bouncer to set a new poolbasePayoutWallet", async () => {
           try {
@@ -959,6 +938,70 @@ contract(
           event.should.be.equal("RefundsEnabled");
           msgSender.should.be.equal(admin1);
           poolContractAddress.should.be.equal(poolbase.address);
+        });
+      });
+
+      context("when using ERC20 tokens", () => {
+        beforeEach(async () => {
+          token = await TokenMock.new();
+          await token.transfer(poolbase.address, ether(1));
+        });
+
+        describe("#emergencyRemoveTokens", () => {
+          it("cannot be called by a non admin", async () => {
+            await poolbase.vouchAsAdmin({ from: admin1 });
+            await poolbase.vouchAsPoolBase({ from: bouncer1 });
+            await assertRevert(
+              poolbase.emergencyRemoveTokens(
+                token.address,
+                bouncer1,
+                ether(1),
+                { from: bouncer1 }
+              )
+            );
+
+            const poolbaseBalance = await token.balanceOf(poolbase.address);
+
+            poolbaseBalance.should.be.bignumber.eq(ether(1));
+          });
+
+          it("cannot have empty beneficiary or zero value", async () => {
+            await poolbase.vouchAsAdmin({ from: admin1 });
+            await poolbase.vouchAsPoolBase({ from: bouncer1 });
+            await assertRevert(
+              poolbase.emergencyRemoveTokens(token.address, "0x0", ether(1), {
+                from: admin1
+              })
+            );
+            await assertRevert(
+              poolbase.emergencyRemoveTokens(token.address, admin1, ether(0), {
+                from: admin1
+              })
+            );
+            const poolbaseBalance = await token.balanceOf(poolbase.address);
+
+            poolbaseBalance.should.be.bignumber.eq(ether(1));
+          });
+          it("requires that all vouch flags to be set", async () => {
+            await assertRevert(
+              poolbase.emergencyRemoveTokens(token.address, admin1, ether(1), {
+                from: admin1
+              })
+            );
+            const poolbaseBalance = await token.balanceOf(poolbase.address);
+
+            poolbaseBalance.should.be.bignumber.eq(ether(1));
+          });
+          it("withdraws ERC20 token from contract", async () => {
+            await poolbase.vouchAsAdmin({ from: admin1 });
+            await poolbase.vouchAsPoolBase({ from: bouncer1 });
+            poolbase.emergencyRemoveTokens(token.address, admin1, ether(1), {
+              from: admin1
+            });
+            const poolbaseBalance = await token.balanceOf(poolbase.address);
+
+            poolbaseBalance.should.be.bignumber.eq(ether(0));
+          });
         });
       });
     });
