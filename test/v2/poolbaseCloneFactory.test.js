@@ -150,11 +150,6 @@ contract(
         } catch (e) {
           ensuresException(e);
         }
-
-        const poolbasePayoutWallet_ = await poolbaseCloneFactory.getPoolbasePayoutWallet();
-        poolbasePayoutWallet_.should.be.equal(
-          "0x0000000000000000000000000000000000000000"
-        );
       });
 
       it("allows owner to set poolbasePayoutWallet", async () => {

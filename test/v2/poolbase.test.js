@@ -16,7 +16,9 @@ contract(
     admin2,
     payoutWallet,
     adminPayoutWallet,
-    poolbasePayoutWallet
+    poolbasePayoutWallet,
+    newPoolbasePayoutWallet,
+    newAdminPayoutWallet
   ]) => {
     let poolbase, poolbaseEventEmitter;
     const maxAllocation = new BigNumber(200);
@@ -619,6 +621,291 @@ contract(
 
           poolbaseWeiBalance = await web3.eth.getBalance(poolbase.address);
           poolbaseWeiBalance.should.be.bignumber.equal(0);
+        });
+      });
+
+      // space for testing emergencyRemoveTokens
+
+      // function emergencyRemoveTokens
+      //   (
+      //   ERC20 _tokenAddress,
+      //   address beneficiary,
+      //   uint256 _value
+      //   )
+      // external
+      // onlyRole(ROLE_ADMIN)
+      // {
+      //   require
+      //     (
+      //     beneficiary != address(0) &&
+      //     _value != 0 && poolbaseVouched &&
+      //     adminVouched,
+      //     "params should not be empty and vouches must be set"
+      //     );
+
+      //   ERC20(_tokenAddress).transfer(beneficiary, _value);
+      // }
+
+      describe("#setPoolbasePayoutWallet", () => {
+        it("does NOT allow a NON bouncer to set a new poolbasePayoutWallet", async () => {
+          try {
+            await poolbase.setPoolbasePayoutWallet(newPoolbasePayoutWallet, {
+              from: admin1
+            });
+            assert.fail();
+          } catch (e) {
+            ensuresException(e);
+          }
+
+          const poolbasePayoutWallet_ = await poolbase.poolbasePayoutWallet();
+          poolbasePayoutWallet_.should.be.equal(poolbasePayoutWallet);
+        });
+
+        it("does NOT allow a bouncer to set empty address for payoutWallet", async () => {
+          try {
+            await poolbase.setPoolbasePayoutWallet(
+              "0x0000000000000000000000000000000000000000",
+              { from: bouncer1 }
+            );
+            assert.fail();
+          } catch (e) {
+            ensuresException(e);
+          }
+
+          const poolbasePayoutWallet_ = await poolbase.poolbasePayoutWallet();
+          poolbasePayoutWallet_.should.be.equal(poolbasePayoutWallet);
+        });
+
+        it("allows bouncer to set a new poolbasePayoutWallet", async () => {
+          await poolbase.setPoolbasePayoutWallet(newPoolbasePayoutWallet, {
+            from: bouncer1
+          });
+
+          const poolbasePayoutWallet_ = await poolbase.poolbasePayoutWallet();
+          poolbasePayoutWallet_.should.be.equal(newPoolbasePayoutWallet);
+        });
+      });
+
+      describe("#setAdminPayoutWallet", () => {
+        it("does NOT allow a NON admin to set a new poolbasePayoutWallet", async () => {
+          try {
+            await poolbase.setAdminPayoutWallet(poolbasePayoutWallet, {
+              from: bouncer1
+            });
+            assert.fail();
+          } catch (e) {
+            ensuresException(e);
+          }
+
+          const adminPayoutWallet_ = await poolbase.adminPayoutWallet();
+          adminPayoutWallet_.should.be.equal(adminPayoutWallet);
+        });
+
+        it("does NOT allow an admin to set empty address for adminPayoutWallet", async () => {
+          try {
+            await poolbase.setAdminPayoutWallet(
+              "0x0000000000000000000000000000000000000000",
+              { from: admin1 }
+            );
+            assert.fail();
+          } catch (e) {
+            ensuresException(e);
+          }
+        });
+
+        it("allows admin to set a new adminPayoutWallet", async () => {
+          await poolbase.setAdminPayoutWallet(newAdminPayoutWallet, {
+            from: admin1
+          });
+
+          const adminPayoutWallet_ = await poolbase.adminPayoutWallet();
+          adminPayoutWallet_.should.be.equal(newAdminPayoutWallet);
+        });
+
+        it("emits AdminPayoutWalletSet event", async () => {
+          const watcher = poolbaseEventEmitter.AdminPayoutWalletSet();
+
+          await poolbase.setAdminPayoutWallet(newAdminPayoutWallet, {
+            from: admin1
+          });
+
+          const events = watcher.get();
+          const { event, args } = events[0];
+          const { msgSender, poolContractAddress, adminPayoutWallet } = args;
+
+          event.should.be.equal("AdminPayoutWalletSet");
+          msgSender.should.be.equal(admin1);
+          poolContractAddress.should.be.equal(poolbase.address);
+          adminPayoutWallet.should.be.equal(newAdminPayoutWallet);
+        });
+      });
+
+      describe("#setPoolbaseFee", () => {
+        it("does NOT allow a NON bouncer to set poolbaseFee", async () => {
+          try {
+            await poolbase.setPoolbaseFee([8, 9], {
+              from: admin1
+            });
+            assert.fail();
+          } catch (e) {
+            ensuresException(e);
+          }
+
+          const poolbaseFee1 = await poolbase.poolbaseFee(0);
+          const poolbaseFee2 = await poolbase.poolbaseFee(1);
+          poolbaseFee1.should.be.bignumber.equal(poolbaseFee[0]);
+          poolbaseFee2.should.be.bignumber.equal(poolbaseFee[1]);
+        });
+
+        it("does NOT allow a bouncer to set empty address for poolbase fee", async () => {
+          try {
+            await poolbase.setPoolbaseFee([0, 0], {
+              from: bouncer1
+            });
+            assert.fail();
+          } catch (e) {
+            ensuresException(e);
+          }
+
+          const poolbaseFee1 = await poolbase.poolbaseFee(0);
+          const poolbaseFee2 = await poolbase.poolbaseFee(1);
+          poolbaseFee1.should.be.bignumber.equal(poolbaseFee[0]);
+          poolbaseFee2.should.be.bignumber.equal(poolbaseFee[1]);
+        });
+
+        it("allows bouncer to set poolbaseFee", async () => {
+          const newPoolbaseFee = [8, 9];
+          await poolbase.setPoolbaseFee(newPoolbaseFee, {
+            from: bouncer1
+          });
+
+          const poolbaseFee1 = await poolbase.poolbaseFee(0);
+          const poolbaseFee2 = await poolbase.poolbaseFee(1);
+          poolbaseFee1.should.be.bignumber.equal(newPoolbaseFee[0]);
+          poolbaseFee2.should.be.bignumber.equal(newPoolbaseFee[1]);
+        });
+      });
+
+      describe("#setAdminPoolFee", () => {
+        it("does NOT allow a NON admin to set adminPoolFee", async () => {
+          try {
+            await poolbase.setAdminPoolFee([8, 9], {
+              from: bouncer1
+            });
+            assert.fail();
+          } catch (e) {
+            ensuresException(e);
+          }
+
+          const adminPoolFee1 = await poolbase.adminPoolFee(0);
+          const adminPoolFee2 = await poolbase.adminPoolFee(1);
+          adminPoolFee1.should.be.bignumber.equal(adminPoolFee[0]);
+          adminPoolFee2.should.be.bignumber.equal(adminPoolFee[1]);
+        });
+
+        it("does NOT allow a admin to set empty address for adminPoolFee", async () => {
+          try {
+            await poolbase.setAdminPoolFee([0, 0], {
+              from: admin1
+            });
+            assert.fail();
+          } catch (e) {
+            ensuresException(e);
+          }
+
+          const adminPoolFee1 = await poolbase.adminPoolFee(0);
+          const adminPoolFee2 = await poolbase.adminPoolFee(1);
+          adminPoolFee1.should.be.bignumber.equal(adminPoolFee[0]);
+          adminPoolFee2.should.be.bignumber.equal(adminPoolFee[1]);
+        });
+
+        it("allows admin to set adminPoolFee", async () => {
+          const newAdminPoolFee = [8, 9];
+          await poolbase.setAdminPoolFee(newAdminPoolFee, {
+            from: admin1
+          });
+
+          const adminPoolFee1 = await poolbase.adminPoolFee(0);
+          const adminPoolFee2 = await poolbase.adminPoolFee(1);
+          adminPoolFee1.should.be.bignumber.equal(newAdminPoolFee[0]);
+          adminPoolFee2.should.be.bignumber.equal(newAdminPoolFee[1]);
+        });
+
+        it("emits AdminPoolFeeSet event", async () => {
+          const newAdminPoolFee = [8, 9];
+          const watcher = poolbaseEventEmitter.AdminPoolFeeSet();
+
+          await poolbase.setAdminPoolFee(newAdminPoolFee, {
+            from: admin1
+          });
+
+          const events = watcher.get();
+          const { event, args } = events[0];
+          const { msgSender, poolContractAddress, adminPoolFee } = args;
+
+          event.should.be.equal("AdminPoolFeeSet");
+          msgSender.should.be.equal(admin1);
+          poolContractAddress.should.be.equal(poolbase.address);
+          adminPoolFee[0].should.be.bignumber.equal(newAdminPoolFee[0]);
+          adminPoolFee[1].should.be.bignumber.equal(newAdminPoolFee[1]);
+        });
+      });
+
+      describe("#changeMaxAllocation", () => {
+        it("does NOT allow a NON admin to set maxAllocation", async () => {
+          try {
+            await poolbase.changeMaxAllocation(100, {
+              from: bouncer1
+            });
+            assert.fail();
+          } catch (e) {
+            ensuresException(e);
+          }
+
+          const maxAllocationInPoolbase = await poolbase.maxAllocation();
+          maxAllocationInPoolbase.should.be.bignumber.equal(maxAllocation);
+        });
+
+        it("does NOT allow a admin to set empty address for maxAllocation", async () => {
+          try {
+            await poolbase.changeMaxAllocation(0, {
+              from: admin1
+            });
+            assert.fail();
+          } catch (e) {
+            ensuresException(e);
+          }
+
+          const maxAllocationInPoolbase = await poolbase.maxAllocation();
+          maxAllocationInPoolbase.should.be.bignumber.equal(maxAllocation);
+        });
+
+        it("allows admin to set maxAllocation", async () => {
+          const newMaxAllocation = 100;
+          await poolbase.changeMaxAllocation(newMaxAllocation, {
+            from: admin1
+          });
+
+          const maxAllocationInPoolbase = await poolbase.maxAllocation();
+          maxAllocationInPoolbase.should.be.bignumber.equal(newMaxAllocation);
+        });
+
+        it("emits MaxAllocationChanged event", async () => {
+          const newMaxAllocation = 100;
+          const watcher = poolbaseEventEmitter.MaxAllocationChanged();
+
+          await poolbase.changeMaxAllocation(newMaxAllocation, {
+            from: admin1
+          });
+
+          const events = watcher.get();
+          const { event, args } = events[0];
+          const { msgSender, poolContractAddress, maxAllocation } = args;
+
+          event.should.be.equal("MaxAllocationChanged");
+          msgSender.should.be.equal(admin1);
+          poolContractAddress.should.be.equal(poolbase.address);
+          maxAllocation.should.be.bignumber.equal(newMaxAllocation);
         });
       });
     });
