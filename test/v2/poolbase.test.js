@@ -3,6 +3,7 @@ const PoolbaseEventEmitter = artifacts.require("./PoolbaseEventEmitter.sol");
 const BigNumber = web3.BigNumber;
 
 const { ensuresException, ether } = require("../helpers/utils");
+const assertRevert = require("../helpers/assertRevert");
 
 contract(
   "Poolbase",
@@ -906,6 +907,58 @@ contract(
           msgSender.should.be.equal(admin1);
           poolContractAddress.should.be.equal(poolbase.address);
           maxAllocation.should.be.bignumber.equal(newMaxAllocation);
+        });
+      });
+
+      describe("#enableefunds", () => {
+        // enum State { Active, Refunding, Closed, TokenPayout }
+        it("cannot accept calls from a non admin", async () => {
+          await assertRevert(poolbase.enableRefunds({ from: bouncer1 }));
+
+          const poolbaseState = await poolbase.state();
+          poolbaseState.should.be.bignumber.equal(0); // Active
+        });
+
+        it("cannot be triggered when contract is paused", async () => {
+          await poolbase.pause({ from: bouncer1 });
+
+          await assertRevert(poolbase.enableRefunds({ from: admin1 }));
+
+          const poolbaseState = await poolbase.state();
+          poolbaseState.should.be.bignumber.equal(0); // Active
+        });
+
+        it("requires state to be Active", async () => {
+          await poolbase.adminClosesPool("0x0", "0x0", { from: admin1 });
+
+          await assertRevert(
+            poolbase.enableRefunds({
+              from: admin1
+            })
+          );
+          const poolbaseState = await poolbase.state();
+          poolbaseState.should.be.bignumber.equal(2); // Closed
+        });
+
+        it("sets state to Refuding", async () => {
+          await poolbase.enableRefunds({ from: admin1 });
+
+          const poolbaseState = await poolbase.state();
+          poolbaseState.should.be.bignumber.equal(1); // Refunding
+        });
+
+        it("emits RefundsEnabled event", async () => {
+          const watcher = poolbaseEventEmitter.RefundsEnabled();
+
+          await poolbase.enableRefunds({ from: admin1 });
+
+          const events = watcher.get();
+          const { event, args } = events[0];
+          const { msgSender, poolContractAddress } = args;
+
+          event.should.be.equal("RefundsEnabled");
+          msgSender.should.be.equal(admin1);
+          poolContractAddress.should.be.equal(poolbase.address);
         });
       });
     });

@@ -347,7 +347,7 @@ contract Poolbase is SignatureBouncer {
                                             .add(allTokensClaimedByInvestors)
                                             .sub(totalTokensFromAllPreviousBatches);
 
-        batches[numOfBatches].rate = batches[numOfBatches].totalTokens / totalWeiRaised;
+        batches[numOfBatches].rate = batches[numOfBatches].totalTokens.div(totalWeiRaised);
 
         eventEmitter.logTokenPayoutEnabledEvent(address(this), msg.sender);
         numOfBatches = numOfBatches.add(1);
