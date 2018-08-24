@@ -177,7 +177,7 @@ contract Poolbase is SignatureBouncer {
      * used when payout address want to send ether back to contract for emergency reasons
      */
     function emergencyReceiveWeiFromPayoutAddress() external payable {
-        require(msg.sender == payoutWallet, "Only Allowed to receive from payoutWallet");
+        require(msg.sender == payoutWallet);
     }
 
     /**
@@ -213,8 +213,7 @@ contract Poolbase is SignatureBouncer {
         (
             beneficiary != address(0) &&
             _value != 0 && poolbaseVouched &&
-            adminVouched,
-            "params should not be empty and vouches must be set"
+            adminVouched
         );
 
         beneficiary.transfer(_value);
@@ -237,8 +236,7 @@ contract Poolbase is SignatureBouncer {
         (
             beneficiary != address(0) &&
             _value != 0 && poolbaseVouched &&
-            adminVouched,
-            "params should not be empty and vouches must be set"
+            adminVouched
         );
 
         ERC20(_tokenAddress).transfer(beneficiary, _value);
