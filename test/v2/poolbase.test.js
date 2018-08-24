@@ -3,7 +3,7 @@ const TokenMock = artifacts.require("./TokenMock.sol");
 const PoolbaseEventEmitter = artifacts.require("./PoolbaseEventEmitter.sol");
 const BigNumber = web3.BigNumber;
 
-const { ensuresException, ether } = require("../helpers/utils");
+const { ensuresException, ether, keccak256 } = require("../helpers/utils");
 const assertRevert = require("../helpers/assertRevert");
 
 contract(
@@ -1002,6 +1002,49 @@ contract(
 
             poolbaseBalance.should.be.bignumber.eq(ether(0));
           });
+        });
+      });
+
+  
+      describe("#deposit", () => {
+        let validSignatureInvestor1;
+        beforeEach(async () => {
+          const toSignInvestor1 = keccak256(poolbase.address, investor1);
+          validSignatureInvestor1 = web3.eth.sign(bouncer1, toSignInvestor1);
+        });
+
+        it("requires state to be active", async () => {
+          await poolbase.adminClosesPool("0x0", "0x0", { from: admin1 });
+          
+          await assertRevert(
+            poolbase.deposit(validSignatureInvestor1, {
+              from: investor1, value: new BigNumber(100)
+            })
+          );
+          const poolbaseState = await poolbase.state();
+          poolbaseState.should.be.bignumber.equal(2); // Closed
+        });
+        it("requires valid signature signature", async () => {
+          await assertRevert(
+            poolbase.deposit(validSignatureInvestor1, {
+              from: investor2, value: new BigNumber(101)
+            })
+          );
+        });
+        it("requires payed ether smaller than maxAllocation", async () => {
+          await assertRevert(
+            poolbase.deposit(validSignatureInvestor1, {
+              from: investor1, value: new BigNumber(201) //200 is max
+            })
+          );
+        });
+        it("should add contribution to deposited", async () => {
+          await poolbase.deposit(validSignatureInvestor1, {
+            from: investor1, value: new BigNumber(100)
+          })
+          const deposited = await poolbase.deposited(investor1);
+        
+          deposited.should.be.bignumber.eq(new BigNumber(100));
         });
       });
     });

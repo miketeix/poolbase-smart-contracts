@@ -1,4 +1,5 @@
 const BigNumber = web3.BigNumber;
+const leftPad = require('left-pad')
 
 const should = require('chai')
     .use(require('chai-as-promised'))
@@ -22,8 +23,31 @@ function ether(n) {
     return new web3.BigNumber(web3.toWei(n, 'ether'));
 }
 
+function keccak256(...args) {
+    args = args.map(arg => {
+      if (typeof arg === "string") {
+        if (arg.substring(0, 2) === "0x") {
+          return arg.slice(2);
+        } else {
+          return web3.toHex(arg).slice(2);
+        }
+      }
+  
+      if (typeof arg === "number") {
+        return leftPad(arg.toString(16), 64, 0);
+      } else {
+        return "";
+      }
+    });
+  
+    args = args.join("");
+  
+    return web3.sha3(args, { encoding: "hex" });
+  }
+
 module.exports = {
     should,
     ensuresException,
-    ether
+    ether,
+    keccak256
 };
