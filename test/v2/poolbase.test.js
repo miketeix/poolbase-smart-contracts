@@ -12,6 +12,7 @@ contract(
     owner,
     investor1,
     investor2,
+    investor3,
     bouncer1,
     bouncer2,
     admin1,
@@ -27,10 +28,18 @@ contract(
     const isAdminFeeInWei = true;
     const adminPoolFee = [1, 2];
     const poolbaseFee = [2, 5];
-
+    let validSignatureInvestor1, validSignatureInvestor2, validSignatureInvestor3;
     beforeEach(async () => {
       poolbaseEventEmitter = await PoolbaseEventEmitter.new();
       poolbase = await Poolbase.new();
+      const toSignInvestor1 = keccak256(poolbase.address, investor1);
+      validSignatureInvestor1 = web3.eth.sign(bouncer1, toSignInvestor1);
+      const toSignInvestor2 = keccak256(poolbase.address, investor2);
+      validSignatureInvestor2 = web3.eth.sign(bouncer1, toSignInvestor2);
+      const toSignInvestor3 = keccak256(poolbase.address, investor3);
+      validSignatureInvestor3 = web3.eth.sign(bouncer1, toSignInvestor3);
+      token = await TokenMock.new();
+      await token.transfer(poolbase.address, 1e18);
     });
 
     describe("#init", () => {
@@ -938,10 +947,7 @@ contract(
       });
 
       context("when using ERC20 tokens", () => {
-        beforeEach(async () => {
-          token = await TokenMock.new();
-          await token.transfer(poolbase.address, 1e18);
-        });
+     
 
         describe("#emergencyRemoveTokens", () => {
           it("cannot be called by a non admin", async () => {
@@ -1000,13 +1006,9 @@ contract(
 
         describe("#adminSetsBatch", () => {
           beforeEach(async () => {
-            const toSignInvestor1 = keccak256(poolbase.address, investor1);
-            validSignatureInvestor1 = web3.eth.sign(bouncer1, toSignInvestor1);
             await poolbase.deposit(validSignatureInvestor1, {
               from: investor1, value: new ether(1)
             })
-            const toSignInvestor2 = keccak256(poolbase.address, investor2);
-            const validSignatureInvestor2 = web3.eth.sign(bouncer1, toSignInvestor2);
             await poolbase.deposit(validSignatureInvestor2, {
               from: investor2, value: new ether(1)
             })
@@ -1035,7 +1037,7 @@ contract(
             const totalTokens = await poolbase.totalTokens();
             totalTokens.should.be.bignumber.eq(1e18);
           });
-          it("should increse total token balance of pool when new tokens are added", async () => {
+          it("should increase total token balance of pool when new tokens are added", async () => {
             await poolbase.adminClosesPool("0x0", "0x0", { from: admin1 });
             await poolbase.adminSetsBatch(token.address, { from: admin1 });
           
@@ -1049,15 +1051,75 @@ contract(
             totalTokens.should.be.bignumber.eq(ether(2));
           });
         });
+
+        describe("#claimToken", () => {
+          beforeEach(async () => {
+
+            await poolbase.deposit(validSignatureInvestor1, {
+              from: investor1, value: new ether(1)
+            })
+
+            await poolbase.deposit(validSignatureInvestor2, {
+              from: investor2, value: new ether(1)
+            })
+         
+            await poolbase.adminClosesPool("0x0", "0x0", { from: admin1 });
+          });
+
+          it("should only work when in state TokenPayout", async () => {
+            await assertRevert(poolbase.claimToken(validSignatureInvestor1, { from: investor1 }));
+
+            await assertRevert(poolbase.claimToken(validSignatureInvestor2, { from: investor2 }));
+
+          });
+
+          it("should only work when msg.sender deposited ether", async () => {
+            await poolbase.adminSetsBatch(token.address, { from: admin1 });
+
+            await assertRevert(poolbase.claimToken(validSignatureInvestor3, { from: investor3 }));
+          });
+ 
+          it("should claim the right proportion", async () => {
+            await token.transfer(poolbase.address, 1e18);
+            await poolbase.adminSetsBatch(token.address, { from: admin1 });
+
+            await poolbase.claimToken(validSignatureInvestor1, { from: investor1 });
+            const tokenBalance = await token.balanceOf(investor1);
+            tokenBalance.should.be.bignumber.eq(1e18);
+          });
+
+          it("should NOT claim again", async () => {
+            await token.transfer(poolbase.address, 1e18);
+
+            await poolbase.adminSetsBatch(token.address, { from: admin1 });
+
+            await poolbase.claimToken(validSignatureInvestor1, { from: investor1 });
+            const tokenBalance = await token.balanceOf(investor1);
+            tokenBalance.should.be.bignumber.eq(1e18);
+
+            await assertRevert(poolbase.claimToken(validSignatureInvestor1, { from: investor1 }));
+          });
+
+          it("should claim rest when new batch is added", async () => {
+            await token.transfer(poolbase.address, 1e18);
+
+            await poolbase.adminSetsBatch(token.address, { from: admin1 });
+
+            await poolbase.claimToken(validSignatureInvestor1, { from: investor1 });
+            const tokenBalance = await token.balanceOf(investor1);
+            tokenBalance.should.be.bignumber.eq(1e18);
+
+            await token.transfer(poolbase.address, ether(2));
+            await poolbase.adminSetsBatch(token.address, { from: admin1 });
+
+            await poolbase.claimToken(validSignatureInvestor1, { from: investor1 });            
+            const tokenBalance2 = await token.balanceOf(investor1);
+            tokenBalance2.should.be.bignumber.eq(ether(2));
+          });
+        });
       });
 
       describe("#deposit", () => {
-        let validSignatureInvestor1;
-        beforeEach(async () => {
-          const toSignInvestor1 = keccak256(poolbase.address, investor1);
-          validSignatureInvestor1 = web3.eth.sign(bouncer1, toSignInvestor1);
-        });
-
         it("requires state to be active", async () => {
           await poolbase.adminClosesPool("0x0", "0x0", { from: admin1 });
 
@@ -1117,6 +1179,7 @@ contract(
           contribution.should.be.bignumber.eq(ether(10));
         });
       });
+
 
       describe("#refund", () => {
         let validSignatureInvestor1;

@@ -366,6 +366,8 @@ contract Poolbase is SignatureBouncer {
         totalClaimableTokens = totalTokens.mul(deposited[msg.sender]).div(totalWeiRaised);
 
         totalClaimableTokens = totalClaimableTokens.sub(tokenClaimed[msg.sender]);
+        require(totalClaimableTokens != 0);
+
         allTokensClaimedByInvestors = allTokensClaimedByInvestors.add(totalClaimableTokens);
         tokenClaimed[msg.sender] = tokenClaimed[msg.sender].add(totalClaimableTokens);
 
@@ -397,6 +399,8 @@ contract Poolbase is SignatureBouncer {
 
         eventEmitter.logClosedEvent(address(this), msg.sender);
 
+        totalWeiRaised = address(this).balance;
+
         uint poolbaseNumerator = poolbaseFee[0];
         uint poolbaseDenominator = poolbaseFee[1];
         uint256 poolBaseReward = address(this).balance.mul(poolbaseNumerator).div(poolbaseDenominator);
@@ -407,17 +411,17 @@ contract Poolbase is SignatureBouncer {
         uint256 adminReward = address(this).balance.mul(adminPoolFeeNumerator).div(adminPoolFeeDenominator);
 
         if (isAdminFeeInWei) {
+
             adminPayoutWallet.transfer(adminReward);
-            totalWeiRaised = address(this).balance;
 
             if (txData > bytes32(0)) {
-                payoutWallet.call.value(totalWeiRaised)(txData);
+                payoutWallet.call.value(address(this).balance)(txData);
             } else {
-                payoutWallet.transfer(totalWeiRaised);
+                payoutWallet.transfer(address(this).balance);
             }
         } else {
             // add adminPoolFee on top of the payout value
-            totalWeiRaised = address(this).balance.add(adminReward);
+            totalWeiRaised = totalWeiRaised.add(adminReward);
             deposited[adminPayoutWallet] = deposited[adminPayoutWallet].add(adminReward);
 
             if (txData > bytes32(0)) {
