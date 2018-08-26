@@ -997,6 +997,58 @@ contract(
             poolbaseBalance.should.be.bignumber.eq(0);
           });
         });
+
+        describe("#adminSetsBatch", () => {
+          beforeEach(async () => {
+            const toSignInvestor1 = keccak256(poolbase.address, investor1);
+            validSignatureInvestor1 = web3.eth.sign(bouncer1, toSignInvestor1);
+            await poolbase.deposit(validSignatureInvestor1, {
+              from: investor1, value: new ether(1)
+            })
+            const toSignInvestor2 = keccak256(poolbase.address, investor2);
+            const validSignatureInvestor2 = web3.eth.sign(bouncer1, toSignInvestor2);
+            await poolbase.deposit(validSignatureInvestor2, {
+              from: investor2, value: new ether(1)
+            })
+          });
+
+          it("requires to be admin", async () => {
+            await poolbase.adminClosesPool("0x0", "0x0", { from: admin1 });
+
+            await assertRevert(poolbase.adminSetsBatch(token.address, {from: bouncer1}));
+          });
+          it("requires state to be closed or TokenPayout", async () => {
+            await assertRevert(poolbase.adminSetsBatch(token.address, {from: admin1}));
+
+          });
+          it("should not work with token balance of 0", async () => {
+            await poolbase.adminClosesPool("0x0", "0x0", { from: admin1 });
+
+            const token2 = await TokenMock.new();
+            await assertRevert(poolbase.adminSetsBatch(token2.address, {from: admin1}));
+
+          });
+          it("should add total token balance of pool", async () => {
+            await poolbase.adminClosesPool("0x0", "0x0", { from: admin1 });
+            await poolbase.adminSetsBatch(token.address, { from: admin1 });
+          
+            const totalTokens = await poolbase.totalTokens();
+            totalTokens.should.be.bignumber.eq(1e18);
+          });
+          it("should increse total token balance of pool when new tokens are added", async () => {
+            await poolbase.adminClosesPool("0x0", "0x0", { from: admin1 });
+            await poolbase.adminSetsBatch(token.address, { from: admin1 });
+          
+            let totalTokens = await poolbase.totalTokens();
+            totalTokens.should.be.bignumber.eq(1e18);
+            await token.transfer(poolbase.address, 1e18);
+
+            await poolbase.adminSetsBatch(token.address, { from: admin1 });
+          
+            totalTokens = await poolbase.totalTokens();
+            totalTokens.should.be.bignumber.eq(ether(2));
+          });
+        });
       });
 
       describe("#deposit", () => {
