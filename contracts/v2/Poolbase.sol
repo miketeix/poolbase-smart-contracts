@@ -327,6 +327,9 @@ contract Poolbase is SignatureBouncer {
         if(token == address(0)) {
             token = ERC20(_token);
         }
+        else{
+            require(address(token) == address(_token));
+        }
         state = State.TokenPayout;
 
         require(token.balanceOf(this) != 0);

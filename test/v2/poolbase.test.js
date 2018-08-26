@@ -1050,6 +1050,15 @@ contract(
             totalTokens = await poolbase.totalTokens();
             totalTokens.should.be.bignumber.eq(ether(2));
           });
+          it("should NOT work second time with new token total", async () => {
+            await poolbase.adminClosesPool("0x0", "0x0", { from: admin1 });
+            await poolbase.adminSetsBatch(token.address, { from: admin1 });
+            const token2 = await TokenMock.new();
+            await token2.transfer(poolbase.address, 1e18);
+
+            await assertRevert(poolbase.adminSetsBatch(token2.address, {from: admin1}));
+          });
+
         });
 
         describe("#claimToken", () => {
