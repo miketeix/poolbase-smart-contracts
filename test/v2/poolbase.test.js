@@ -28,21 +28,16 @@ contract(
     const isAdminFeeInWei = true;
     const adminPoolFee = [1, 2];
     const poolbaseFee = [2, 5];
-    let validSignatureInvestor1, validSignatureInvestor2, validSignatureInvestor3;
+    let validSignatureInvestor1,
+      validSignatureInvestor2,
+      validSignatureInvestor3;
+
     beforeEach(async () => {
       poolbaseEventEmitter = await PoolbaseEventEmitter.new();
       poolbase = await Poolbase.new();
-      const toSignInvestor1 = keccak256(poolbase.address, investor1);
-      validSignatureInvestor1 = web3.eth.sign(bouncer1, toSignInvestor1);
-      const toSignInvestor2 = keccak256(poolbase.address, investor2);
-      validSignatureInvestor2 = web3.eth.sign(bouncer1, toSignInvestor2);
-      const toSignInvestor3 = keccak256(poolbase.address, investor3);
-      validSignatureInvestor3 = web3.eth.sign(bouncer1, toSignInvestor3);
-      token = await TokenMock.new();
-      await token.transfer(poolbase.address, 1e18);
     });
 
-    describe("#init", () => {
+    context("when init function is set", () => {
       beforeEach(async () => {
         await poolbase.init(
           [bouncer1, bouncer2],
@@ -58,132 +53,118 @@ contract(
           { from: owner }
         );
       });
+      describe("#init", () => {
+        it("sets bouncer", async () => {
+          const roleBouncer = await poolbase.ROLE_BOUNCER();
 
-      it("sets bouncer", async () => {
-        const roleBouncer = await poolbase.ROLE_BOUNCER();
+          const isBouncer1 = await poolbase.hasRole.call(bouncer1, roleBouncer);
+          isBouncer1.should.be.true;
 
-        const isBouncer1 = await poolbase.hasRole.call(bouncer1, roleBouncer);
-        isBouncer1.should.be.true;
+          const isBouncer2 = await poolbase.hasRole.call(bouncer2, roleBouncer);
+          isBouncer2.should.be.true;
 
-        const isBouncer2 = await poolbase.hasRole.call(bouncer2, roleBouncer);
-        isBouncer2.should.be.true;
+          const isBouncer3 = await poolbase.hasRole.call(admin1, roleBouncer);
+          isBouncer3.should.be.false;
 
-        const isBouncer3 = await poolbase.hasRole.call(admin1, roleBouncer);
-        isBouncer3.should.be.false;
+          const isBouncer4 = await poolbase.hasRole.call(admin2, roleBouncer);
+          isBouncer4.should.be.false;
+        });
 
-        const isBouncer4 = await poolbase.hasRole.call(admin2, roleBouncer);
-        isBouncer4.should.be.false;
-      });
+        it("sets poolbase creator as bouncer", async () => {
+          const roleBouncer = await poolbase.ROLE_BOUNCER();
 
-      it("sets poolbase creator as bouncer", async () => {
-        const roleBouncer = await poolbase.ROLE_BOUNCER();
+          const isBouncer = await poolbase.hasRole(owner, roleBouncer);
+          isBouncer.should.be.true;
+        });
 
-        const isBouncer = await poolbase.hasRole(owner, roleBouncer);
-        isBouncer.should.be.true;
-      });
+        it("sets the pool maxAllocation", async () => {
+          const maxAllocationValue = await poolbase.maxAllocation();
+          maxAllocationValue.should.be.bignumber.equal(maxAllocation);
+        });
 
-      it("sets the pool maxAllocation", async () => {
-        const maxAllocationValue = await poolbase.maxAllocation();
-        maxAllocationValue.should.be.bignumber.equal(maxAllocation);
-      });
+        it("sets adminPoolFee", async () => {
+          const adminPoolFeeFirstValue = await poolbase.adminPoolFee(0);
+          const adminPoolFeeSecondValue = await poolbase.adminPoolFee(1);
+          adminPoolFeeFirstValue.should.be.bignumber.equal(adminPoolFee[0]);
+          adminPoolFeeSecondValue.should.be.bignumber.equal(adminPoolFee[1]);
+        });
 
-      it("sets adminPoolFee", async () => {
-        const adminPoolFeeFirstValue = await poolbase.adminPoolFee(0);
-        const adminPoolFeeSecondValue = await poolbase.adminPoolFee(1);
-        adminPoolFeeFirstValue.should.be.bignumber.equal(adminPoolFee[0]);
-        adminPoolFeeSecondValue.should.be.bignumber.equal(adminPoolFee[1]);
-      });
+        it("sets poolbaseFee", async () => {
+          const poolbaseFeeFirstValue = await poolbase.poolbaseFee(0);
+          const poolbaseFeeSecondValue = await poolbase.poolbaseFee(1);
 
-      it("sets poolbaseFee", async () => {
-        const poolbaseFeeFirstValue = await poolbase.poolbaseFee(0);
-        const poolbaseFeeSecondValue = await poolbase.poolbaseFee(1);
+          poolbaseFeeFirstValue.should.be.bignumber.equal(poolbaseFee[0]);
+          poolbaseFeeSecondValue.should.be.bignumber.equal(poolbaseFee[1]);
+        });
 
-        poolbaseFeeFirstValue.should.be.bignumber.equal(poolbaseFee[0]);
-        poolbaseFeeSecondValue.should.be.bignumber.equal(poolbaseFee[1]);
-      });
+        it("sets isAdminFeeInWei", async () => {
+          const isAdminFeeInWeiValue = await poolbase.isAdminFeeInWei();
+          isAdminFeeInWeiValue.should.be.equal(isAdminFeeInWei);
+        });
 
-      it("sets isAdminFeeInWei", async () => {
-        const isAdminFeeInWeiValue = await poolbase.isAdminFeeInWei();
-        isAdminFeeInWeiValue.should.be.equal(isAdminFeeInWei);
-      });
+        it("sets payoutWallet", async () => {
+          const payoutWalletValue = await poolbase.payoutWallet();
+          payoutWalletValue.should.be.equal(payoutWallet);
+        });
 
-      it("sets payoutWallet", async () => {
-        const payoutWalletValue = await poolbase.payoutWallet();
-        payoutWalletValue.should.be.equal(payoutWallet);
-      });
+        it("sets adminPayoutWallet", async () => {
+          const adminPayoutWalletValue = await poolbase.adminPayoutWallet();
+          adminPayoutWalletValue.should.be.equal(adminPayoutWallet);
+        });
 
-      it("sets adminPayoutWallet", async () => {
-        const adminPayoutWalletValue = await poolbase.adminPayoutWallet();
-        adminPayoutWalletValue.should.be.equal(adminPayoutWallet);
-      });
+        it("sets poolbasePayoutWallet", async () => {
+          const poolbasePayoutWalletValue = await poolbase.poolbasePayoutWallet();
+          poolbasePayoutWalletValue.should.be.equal(poolbasePayoutWallet);
+        });
 
-      it("sets poolbasePayoutWallet", async () => {
-        const poolbasePayoutWalletValue = await poolbase.poolbasePayoutWallet();
-        poolbasePayoutWalletValue.should.be.equal(poolbasePayoutWallet);
-      });
-
-      it("sets eventEmitterContract", async () => {
-        const eventEmitterContractValue = await poolbase.eventEmitter();
-        eventEmitterContractValue.should.be.equal(poolbaseEventEmitter.address);
-      });
-
-      it("sets admins", async () => {
-        const roleAdmin = await poolbase.ROLE_ADMIN();
-
-        const isAdmin1 = await poolbase.hasRole.call(admin1, roleAdmin);
-        isAdmin1.should.be.true;
-
-        const isAdmin2 = await poolbase.hasRole.call(admin2, roleAdmin);
-        isAdmin2.should.be.true;
-      });
-
-      it("sets tx.origin as an admin", async () => {
-        const roleAdmin = await poolbase.ROLE_ADMIN();
-
-        const isAdmin = await poolbase.hasRole.call(owner, roleAdmin);
-        isAdmin.should.be.true;
-      });
-
-      it("cannot call init again once initial values are set", async () => {
-        // attempt to override initial values should throw exceptions
-        try {
-          await poolbase.init(
-            [bouncer1, bouncer2],
-            new BigNumber(100),
-            [5, 7],
-            [8, 9],
-            false,
-            payoutWallet,
-            adminPayoutWallet,
-            poolbasePayoutWallet,
-            poolbaseEventEmitter.address,
-            [investor1, investor2]
+        it("sets eventEmitterContract", async () => {
+          const eventEmitterContractValue = await poolbase.eventEmitter();
+          eventEmitterContractValue.should.be.equal(
+            poolbaseEventEmitter.address
           );
-          assert.fail();
-        } catch (error) {
-          ensuresException(error);
-        }
+        });
 
-        const maxAllocationValue = await poolbase.maxAllocation();
-        // maxAllocation is still the same
-        maxAllocationValue.should.be.bignumber.equal(maxAllocation);
-      });
-    });
+        it("sets admins", async () => {
+          const roleAdmin = await poolbase.ROLE_ADMIN();
 
-    context("when init function is set", () => {
-      beforeEach(async () => {
-        await poolbase.init(
-          [bouncer1, bouncer2],
-          maxAllocation,
-          adminPoolFee,
-          poolbaseFee,
-          isAdminFeeInWei,
-          payoutWallet,
-          adminPayoutWallet,
-          poolbasePayoutWallet,
-          poolbaseEventEmitter.address,
-          [admin1, admin2]
-        );
+          const isAdmin1 = await poolbase.hasRole.call(admin1, roleAdmin);
+          isAdmin1.should.be.true;
+
+          const isAdmin2 = await poolbase.hasRole.call(admin2, roleAdmin);
+          isAdmin2.should.be.true;
+        });
+
+        it("sets tx.origin as an admin", async () => {
+          const roleAdmin = await poolbase.ROLE_ADMIN();
+
+          const isAdmin = await poolbase.hasRole.call(owner, roleAdmin);
+          isAdmin.should.be.true;
+        });
+
+        it("cannot call init again once initial values are set", async () => {
+          // attempt to override initial values should throw exceptions
+          try {
+            await poolbase.init(
+              [bouncer1, bouncer2],
+              new BigNumber(100),
+              [5, 7],
+              [8, 9],
+              false,
+              payoutWallet,
+              adminPayoutWallet,
+              poolbasePayoutWallet,
+              poolbaseEventEmitter.address,
+              [investor1, investor2]
+            );
+            assert.fail();
+          } catch (error) {
+            ensuresException(error);
+          }
+
+          const maxAllocationValue = await poolbase.maxAllocation();
+          // maxAllocation is still the same
+          maxAllocationValue.should.be.bignumber.equal(maxAllocation);
+        });
       });
 
       describe("#fallback function", () => {
@@ -947,7 +928,17 @@ contract(
       });
 
       context("when using ERC20 tokens", () => {
-     
+        beforeEach(async () => {
+          //setup for investing mechanism functions
+          const toSignInvestor1 = keccak256(poolbase.address, investor1);
+          validSignatureInvestor1 = web3.eth.sign(bouncer1, toSignInvestor1);
+          const toSignInvestor2 = keccak256(poolbase.address, investor2);
+          validSignatureInvestor2 = web3.eth.sign(bouncer1, toSignInvestor2);
+          const toSignInvestor3 = keccak256(poolbase.address, investor3);
+          validSignatureInvestor3 = web3.eth.sign(bouncer1, toSignInvestor3);
+          token = await TokenMock.new();
+          await token.transfer(poolbase.address, 1e18);
+        });
 
         describe("#emergencyRemoveTokens", () => {
           it("cannot be called by a non admin", async () => {
@@ -1004,49 +995,198 @@ contract(
           });
         });
 
+        describe("#deposit", () => {
+          it("requires state to be active", async () => {
+            await poolbase.adminClosesPool("0x0", "0x0", { from: admin1 });
+
+            await assertRevert(
+              poolbase.deposit(validSignatureInvestor1, {
+                from: investor1,
+                value: ether(10)
+              })
+            );
+            const poolbaseState = await poolbase.state();
+            poolbaseState.should.be.bignumber.equal(2); // Closed
+          });
+
+          it("requires valid signature signature", async () => {
+            await assertRevert(
+              poolbase.deposit(validSignatureInvestor1, {
+                from: investor2,
+                value: ether(10)
+              })
+            );
+          });
+
+          it("requires contributed ether that is smaller than maxAllocation", async () => {
+            await assertRevert(
+              poolbase.deposit(validSignatureInvestor1, {
+                from: investor1,
+                value: ether(201) //200 is max
+              })
+            );
+          });
+
+          it("should add user's contribution to deposited", async () => {
+            await poolbase.deposit(validSignatureInvestor1, {
+              from: investor1,
+              value: ether(10)
+            });
+
+            const deposited = await poolbase.deposited(investor1);
+            deposited.should.be.bignumber.eq(ether(10));
+          });
+
+          it("emits ContributionMade event", async () => {
+            const watcher = poolbaseEventEmitter.ContributionMade();
+
+            await poolbase.deposit(validSignatureInvestor1, {
+              from: investor1,
+              value: ether(10)
+            });
+
+            const events = watcher.get();
+            const { event, args } = events[0];
+            const { msgSender, poolContractAddress, contribution } = args;
+
+            event.should.be.equal("ContributionMade");
+            msgSender.should.be.equal(investor1);
+            poolContractAddress.should.be.equal(poolbase.address);
+            contribution.should.be.bignumber.eq(ether(10));
+          });
+        });
+
+        describe("#refund", () => {
+          let validSignatureInvestor1;
+          beforeEach(async () => {
+            const toSignInvestor1 = keccak256(poolbase.address, investor1);
+            validSignatureInvestor1 = web3.eth.sign(bouncer1, toSignInvestor1);
+
+            await poolbase.deposit(validSignatureInvestor1, {
+              from: investor1,
+              value: ether(10)
+            });
+          });
+
+          it("requires state to be active", async () => {
+            await poolbase.adminClosesPool("0x0", "0x0", { from: admin1 });
+            const poolbaseState = await poolbase.state();
+            poolbaseState.should.be.bignumber.equal(2); // Closed
+
+            await assertRevert(
+              poolbase.refund(validSignatureInvestor1, {
+                from: investor1
+              })
+            );
+
+            const deposited = await poolbase.deposited(investor1);
+            deposited.should.be.bignumber.eq(ether(10));
+            const investor1TokenBalance = await token.balanceOf(investor1);
+            investor1TokenBalance.should.be.bignumber.eq(0);
+          });
+
+          it("requires valid signature", async () => {
+            await assertRevert(
+              poolbase.refund(validSignatureInvestor1, {
+                from: investor2
+              })
+            );
+
+            const deposited = await poolbase.deposited(investor1);
+            deposited.should.be.bignumber.eq(ether(10));
+            const investor1TokenBalance = await token.balanceOf(investor1);
+            investor1TokenBalance.should.be.bignumber.eq(0);
+          });
+
+          it("refunds user's contribution setting the contribution to zero", async () => {
+            const investor1Balance = await web3.eth.getBalance(investor1);
+
+            await poolbase.refund(validSignatureInvestor1, {
+              from: investor1
+            });
+
+            const deposited = await poolbase.deposited(investor1);
+            deposited.should.be.bignumber.eq(0);
+
+            const investor1BalanceAfterRefunding = await web3.eth.getBalance(
+              investor1
+            );
+            // investor balance should have received its 10 ether from the contract after refund happened
+            investor1BalanceAfterRefunding
+              .toNumber()
+              .should.be.approximately(
+                investor1Balance.toNumber() + ether(10).toNumber(),
+                1e16
+              );
+          });
+
+          it("emits Refunded event", async () => {
+            const watcher = poolbaseEventEmitter.Refunded();
+
+            await poolbase.refund(validSignatureInvestor1, {
+              from: investor1
+            });
+
+            const events = watcher.get();
+            const { event, args } = events[0];
+            const { msgSender, poolContractAddress, weiAmount } = args;
+
+            event.should.be.equal("Refunded");
+            msgSender.should.be.equal(investor1);
+            poolContractAddress.should.be.equal(poolbase.address);
+            weiAmount.should.be.bignumber.eq(ether(10));
+          });
+        });
+
         describe("#adminSetsBatch", () => {
           beforeEach(async () => {
             await poolbase.deposit(validSignatureInvestor1, {
-              from: investor1, value: new ether(1)
-            })
+              from: investor1,
+              value: new ether(1)
+            });
             await poolbase.deposit(validSignatureInvestor2, {
-              from: investor2, value: new ether(1)
-            })
+              from: investor2,
+              value: new ether(1)
+            });
           });
 
           it("requires to be admin", async () => {
             await poolbase.adminClosesPool("0x0", "0x0", { from: admin1 });
 
-            await assertRevert(poolbase.adminSetsBatch(token.address, {from: bouncer1}));
+            await assertRevert(
+              poolbase.adminSetsBatch(token.address, { from: bouncer1 })
+            );
           });
           it("requires state to be closed or TokenPayout", async () => {
-            await assertRevert(poolbase.adminSetsBatch(token.address, {from: admin1}));
-
+            await assertRevert(
+              poolbase.adminSetsBatch(token.address, { from: admin1 })
+            );
           });
           it("should not work with token balance of 0", async () => {
             await poolbase.adminClosesPool("0x0", "0x0", { from: admin1 });
 
             const token2 = await TokenMock.new();
-            await assertRevert(poolbase.adminSetsBatch(token2.address, {from: admin1}));
-
+            await assertRevert(
+              poolbase.adminSetsBatch(token2.address, { from: admin1 })
+            );
           });
           it("should add total token balance of pool", async () => {
             await poolbase.adminClosesPool("0x0", "0x0", { from: admin1 });
             await poolbase.adminSetsBatch(token.address, { from: admin1 });
-          
+
             const totalTokens = await poolbase.totalTokens();
             totalTokens.should.be.bignumber.eq(1e18);
           });
           it("should increase total token balance of pool when new tokens are added", async () => {
             await poolbase.adminClosesPool("0x0", "0x0", { from: admin1 });
             await poolbase.adminSetsBatch(token.address, { from: admin1 });
-          
+
             let totalTokens = await poolbase.totalTokens();
             totalTokens.should.be.bignumber.eq(1e18);
             await token.transfer(poolbase.address, 1e18);
 
             await poolbase.adminSetsBatch(token.address, { from: admin1 });
-          
+
             totalTokens = await poolbase.totalTokens();
             totalTokens.should.be.bignumber.eq(ether(2));
           });
@@ -1056,43 +1196,52 @@ contract(
             const token2 = await TokenMock.new();
             await token2.transfer(poolbase.address, 1e18);
 
-            await assertRevert(poolbase.adminSetsBatch(token2.address, {from: admin1}));
+            await assertRevert(
+              poolbase.adminSetsBatch(token2.address, { from: admin1 })
+            );
           });
-
         });
 
         describe("#claimToken", () => {
           beforeEach(async () => {
-
             await poolbase.deposit(validSignatureInvestor1, {
-              from: investor1, value: new ether(1)
-            })
+              from: investor1,
+              value: new ether(1)
+            });
 
             await poolbase.deposit(validSignatureInvestor2, {
-              from: investor2, value: new ether(1)
-            })
-         
+              from: investor2,
+              value: new ether(1)
+            });
+
             await poolbase.adminClosesPool("0x0", "0x0", { from: admin1 });
           });
 
           it("should only work when in state TokenPayout", async () => {
-            await assertRevert(poolbase.claimToken(validSignatureInvestor1, { from: investor1 }));
+            await assertRevert(
+              poolbase.claimToken(validSignatureInvestor1, { from: investor1 })
+            );
 
-            await assertRevert(poolbase.claimToken(validSignatureInvestor2, { from: investor2 }));
-
+            await assertRevert(
+              poolbase.claimToken(validSignatureInvestor2, { from: investor2 })
+            );
           });
 
           it("should only work when msg.sender deposited ether", async () => {
             await poolbase.adminSetsBatch(token.address, { from: admin1 });
 
-            await assertRevert(poolbase.claimToken(validSignatureInvestor3, { from: investor3 }));
+            await assertRevert(
+              poolbase.claimToken(validSignatureInvestor3, { from: investor3 })
+            );
           });
- 
+
           it("should claim the right proportion", async () => {
             await token.transfer(poolbase.address, 1e18);
             await poolbase.adminSetsBatch(token.address, { from: admin1 });
 
-            await poolbase.claimToken(validSignatureInvestor1, { from: investor1 });
+            await poolbase.claimToken(validSignatureInvestor1, {
+              from: investor1
+            });
             const tokenBalance = await token.balanceOf(investor1);
             tokenBalance.should.be.bignumber.eq(1e18);
           });
@@ -1102,11 +1251,15 @@ contract(
 
             await poolbase.adminSetsBatch(token.address, { from: admin1 });
 
-            await poolbase.claimToken(validSignatureInvestor1, { from: investor1 });
+            await poolbase.claimToken(validSignatureInvestor1, {
+              from: investor1
+            });
             const tokenBalance = await token.balanceOf(investor1);
             tokenBalance.should.be.bignumber.eq(1e18);
 
-            await assertRevert(poolbase.claimToken(validSignatureInvestor1, { from: investor1 }));
+            await assertRevert(
+              poolbase.claimToken(validSignatureInvestor1, { from: investor1 })
+            );
           });
 
           it("should claim rest when new batch is added", async () => {
@@ -1114,163 +1267,25 @@ contract(
 
             await poolbase.adminSetsBatch(token.address, { from: admin1 });
 
-            await poolbase.claimToken(validSignatureInvestor1, { from: investor1 });
+            await poolbase.claimToken(validSignatureInvestor1, {
+              from: investor1
+            });
             const tokenBalance = await token.balanceOf(investor1);
             tokenBalance.should.be.bignumber.eq(1e18);
 
             await token.transfer(poolbase.address, ether(2));
             await poolbase.adminSetsBatch(token.address, { from: admin1 });
 
-            await poolbase.claimToken(validSignatureInvestor1, { from: investor1 });            
+            await poolbase.claimToken(validSignatureInvestor1, {
+              from: investor1
+            });
             const tokenBalance2 = await token.balanceOf(investor1);
             tokenBalance2.should.be.bignumber.eq(ether(2));
           });
         });
+        // close context 'when using ERC20 tokens'
       });
-
-      describe("#deposit", () => {
-        it("requires state to be active", async () => {
-          await poolbase.adminClosesPool("0x0", "0x0", { from: admin1 });
-
-          await assertRevert(
-            poolbase.deposit(validSignatureInvestor1, {
-              from: investor1,
-              value: ether(10)
-            })
-          );
-          const poolbaseState = await poolbase.state();
-          poolbaseState.should.be.bignumber.equal(2); // Closed
-        });
-
-        it("requires valid signature signature", async () => {
-          await assertRevert(
-            poolbase.deposit(validSignatureInvestor1, {
-              from: investor2,
-              value: ether(10)
-            })
-          );
-        });
-
-        it("requires contributed ether that is smaller than maxAllocation", async () => {
-          await assertRevert(
-            poolbase.deposit(validSignatureInvestor1, {
-              from: investor1,
-              value: ether(201) //200 is max
-            })
-          );
-        });
-
-        it("should add user's contribution to deposited", async () => {
-          await poolbase.deposit(validSignatureInvestor1, {
-            from: investor1,
-            value: ether(10)
-          });
-
-          const deposited = await poolbase.deposited(investor1);
-          deposited.should.be.bignumber.eq(ether(10));
-        });
-
-        it("emits ContributionMade event", async () => {
-          const watcher = poolbaseEventEmitter.ContributionMade();
-
-          await poolbase.deposit(validSignatureInvestor1, {
-            from: investor1,
-            value: ether(10)
-          });
-
-          const events = watcher.get();
-          const { event, args } = events[0];
-          const { msgSender, poolContractAddress, contribution } = args;
-
-          event.should.be.equal("ContributionMade");
-          msgSender.should.be.equal(investor1);
-          poolContractAddress.should.be.equal(poolbase.address);
-          contribution.should.be.bignumber.eq(ether(10));
-        });
-      });
-
-
-      describe("#refund", () => {
-        let validSignatureInvestor1;
-        beforeEach(async () => {
-          const toSignInvestor1 = keccak256(poolbase.address, investor1);
-          validSignatureInvestor1 = web3.eth.sign(bouncer1, toSignInvestor1);
-
-          await poolbase.deposit(validSignatureInvestor1, {
-            from: investor1,
-            value: ether(10)
-          });
-        });
-
-        it("requires state to be active", async () => {
-          await poolbase.adminClosesPool("0x0", "0x0", { from: admin1 });
-          const poolbaseState = await poolbase.state();
-          poolbaseState.should.be.bignumber.equal(2); // Closed
-
-          await assertRevert(
-            poolbase.refund(validSignatureInvestor1, {
-              from: investor1
-            })
-          );
-
-          const deposited = await poolbase.deposited(investor1);
-          deposited.should.be.bignumber.eq(ether(10));
-          const investor1TokenBalance = await token.balanceOf(investor1);
-          investor1TokenBalance.should.be.bignumber.eq(0);
-        });
-
-        it("requires valid signature", async () => {
-          await assertRevert(
-            poolbase.refund(validSignatureInvestor1, {
-              from: investor2
-            })
-          );
-
-          const deposited = await poolbase.deposited(investor1);
-          deposited.should.be.bignumber.eq(ether(10));
-          const investor1TokenBalance = await token.balanceOf(investor1);
-          investor1TokenBalance.should.be.bignumber.eq(0);
-        });
-
-        it("refunds user's contribution setting the contribution to zero", async () => {
-          const investor1Balance = await web3.eth.getBalance(investor1);
-
-          await poolbase.refund(validSignatureInvestor1, {
-            from: investor1
-          });
-
-          const deposited = await poolbase.deposited(investor1);
-          deposited.should.be.bignumber.eq(0);
-
-          const investor1BalanceAfterRefunding = await web3.eth.getBalance(
-            investor1
-          );
-          // investor balance should have received its 10 ether from the contract after refund happened
-          investor1BalanceAfterRefunding
-            .toNumber()
-            .should.be.approximately(
-              investor1Balance.toNumber() + ether(10).toNumber(),
-              1e16
-            );
-        });
-
-        it("emits Refunded event", async () => {
-          const watcher = poolbaseEventEmitter.Refunded();
-
-          await poolbase.refund(validSignatureInvestor1, {
-            from: investor1
-          });
-
-          const events = watcher.get();
-          const { event, args } = events[0];
-          const { msgSender, poolContractAddress, weiAmount } = args;
-
-          event.should.be.equal("Refunded");
-          msgSender.should.be.equal(investor1);
-          poolContractAddress.should.be.equal(poolbase.address);
-          weiAmount.should.be.bignumber.eq(ether(10));
-        });
-      });
+      // close context 'when init function is set'
     });
   }
 );
