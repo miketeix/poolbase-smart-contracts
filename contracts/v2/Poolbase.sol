@@ -31,17 +31,12 @@ contract Poolbase is SignatureBouncer {
     enum State { Active, Refunding, Closed, TokenPayout }
     State public state;
 
-    struct Batch {
-        uint256 rate;
-        uint256 totalTokens;
-    }
+    uint256 public totalTokens;
 
-    uint256 public numOfBatches;
     uint256 public allTokensClaimedByInvestors;
 
     mapping (address => uint256) public deposited;
     mapping (address => uint256) public tokenClaimed;
-    mapping (uint256 => Batch) public batches;
 
     /* External Contract */
     PoolbaseEventEmitter public eventEmitter;
@@ -306,7 +301,7 @@ contract Poolbase is SignatureBouncer {
      */
     function deposit(bytes sig) external onlyValidSignature(sig) whenNotPaused payable {
         require(state == State.Active);
-        require(address(this).balance.add(msg.value) <= maxAllocation);
+        require(address(this).balance <= maxAllocation);
         deposited[msg.sender] = deposited[msg.sender].add(msg.value);
 
         eventEmitter.logContributionEvent(address(this), msg.sender, msg.value);
@@ -328,29 +323,21 @@ contract Poolbase is SignatureBouncer {
      */
     function adminSetsBatch(ERC20 _token) external onlyRole(ROLE_ADMIN) whenNotPaused {
         require(state == State.Closed || state == State.TokenPayout);
+        require(totalWeiRaised != 0);
+        if(token == address(0)) {
+            token = ERC20(_token);
+        }
+        else{
+            require(address(token) == address(_token));
+        }
         state = State.TokenPayout;
 
-        token = ERC20(_token);
         require(token.balanceOf(this) != 0);
-
-        uint256 totalTokensFromAllPreviousBatches;
-
-        if (numOfBatches > 0) {
-            for (uint8 i = 0; i < numOfBatches; i++) {
-                totalTokensFromAllPreviousBatches = totalTokensFromAllPreviousBatches.add(batches[i].totalTokens);
-            }
-        }
 
         uint256 currentTokensInContract = token.balanceOf(this);
 
-        batches[numOfBatches].totalTokens = currentTokensInContract
-                                            .add(allTokensClaimedByInvestors)
-                                            .sub(totalTokensFromAllPreviousBatches);
-
-        batches[numOfBatches].rate = batches[numOfBatches].totalTokens.div(totalWeiRaised);
-
+        totalTokens = currentTokensInContract.add(allTokensClaimedByInvestors);
         eventEmitter.logTokenPayoutEnabledEvent(address(this), msg.sender);
-        numOfBatches = numOfBatches.add(1);
     }
 
      /**
@@ -360,7 +347,6 @@ contract Poolbase is SignatureBouncer {
     function refund(bytes sig) external onlyValidSignature(sig) whenNotPaused {
         require(state == State.Active || state == State.Refunding);
         uint256 depositedValue = deposited[msg.sender];
-
         deposited[msg.sender] = 0;
         msg.sender.transfer(depositedValue);
         eventEmitter.logRefundedEvent(address(this), msg.sender, depositedValue);
@@ -379,12 +365,12 @@ contract Poolbase is SignatureBouncer {
         require(deposited[msg.sender] != 0);
 
         uint256 totalClaimableTokens;
-        if (numOfBatches > 0) {
-            for (uint8 i = 0; i < numOfBatches; i++) {
-                totalClaimableTokens = totalClaimableTokens.add(batches[i].rate.mul(deposited[msg.sender]));
-            }
-        }
+        
+        totalClaimableTokens = totalTokens.mul(deposited[msg.sender]).div(totalWeiRaised);
+
         totalClaimableTokens = totalClaimableTokens.sub(tokenClaimed[msg.sender]);
+        require(totalClaimableTokens != 0);
+
         allTokensClaimedByInvestors = allTokensClaimedByInvestors.add(totalClaimableTokens);
         tokenClaimed[msg.sender] = tokenClaimed[msg.sender].add(totalClaimableTokens);
 
@@ -416,6 +402,8 @@ contract Poolbase is SignatureBouncer {
 
         eventEmitter.logClosedEvent(address(this), msg.sender);
 
+        totalWeiRaised = address(this).balance;
+
         uint poolbaseNumerator = poolbaseFee[0];
         uint poolbaseDenominator = poolbaseFee[1];
         uint256 poolBaseReward = address(this).balance.mul(poolbaseNumerator).div(poolbaseDenominator);
@@ -426,17 +414,17 @@ contract Poolbase is SignatureBouncer {
         uint256 adminReward = address(this).balance.mul(adminPoolFeeNumerator).div(adminPoolFeeDenominator);
 
         if (isAdminFeeInWei) {
+
             adminPayoutWallet.transfer(adminReward);
-            totalWeiRaised = address(this).balance;
 
             if (txData > bytes32(0)) {
-                payoutWallet.call.value(totalWeiRaised)(txData);
+                payoutWallet.call.value(address(this).balance)(txData);
             } else {
-                payoutWallet.transfer(totalWeiRaised);
+                payoutWallet.transfer(address(this).balance);
             }
         } else {
             // add adminPoolFee on top of the payout value
-            totalWeiRaised = address(this).balance.add(adminReward);
+            totalWeiRaised = totalWeiRaised.add(adminReward);
             deposited[adminPayoutWallet] = deposited[adminPayoutWallet].add(adminReward);
 
             if (txData > bytes32(0)) {
