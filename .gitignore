@@ -5,4 +5,8 @@ addresses
 .specifications
 Pseudo.sol
 .vscode
+
+# coverage files
 coverage
+coverage.json
+coverageEnv
