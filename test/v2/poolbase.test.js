@@ -1124,6 +1124,10 @@ contract(
             await poolbase.claimToken(validSignatureInvestor1, { from: investor1 });            
             const tokenBalance2 = await token.balanceOf(investor1);
             tokenBalance2.should.be.bignumber.eq(ether(2));
+
+            await poolbase.claimToken(validSignatureInvestor2, { from: investor2 });            
+            const tokenBalanceInvestor2 = await token.balanceOf(investor2);
+            tokenBalanceInvestor2.should.be.bignumber.eq(ether(2));
           });
         });
       });
