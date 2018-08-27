@@ -1,8 +1,8 @@
 const Poolbase = artifacts.require("./Poolbase.sol");
 const TokenMock = artifacts.require("./TokenMock.sol");
 const PoolbaseEventEmitter = artifacts.require("./PoolbaseEventEmitter.sol");
+web3.BigNumber.config({DECIMAL_PLACES: 0, ROUNDING_MODE: web3.BigNumber.ROUND_FLOOR});
 const BigNumber = web3.BigNumber;
-
 const { ensuresException, ether, keccak256 } = require("../helpers/utils");
 const assertRevert = require("../helpers/assertRevert");
 
@@ -1214,10 +1214,11 @@ contract(
               value: new ether(1)
             });
 
-            await poolbase.adminClosesPool("0x0", "0x0", { from: admin1 });
           });
 
           it("should only work when in state TokenPayout", async () => {
+            await poolbase.adminClosesPool("0x0", "0x0", { from: admin1 });
+
             await assertRevert(
               poolbase.claimToken(validSignatureInvestor1, { from: investor1 })
             );
@@ -1228,6 +1229,8 @@ contract(
           });
 
           it("should only work when msg.sender deposited ether", async () => {
+            await poolbase.adminClosesPool("0x0", "0x0", { from: admin1 });
+
             await poolbase.adminSetsBatch(token.address, { from: admin1 });
 
             await assertRevert(
@@ -1236,6 +1239,8 @@ contract(
           });
 
           it("should claim the right proportion", async () => {
+            await poolbase.adminClosesPool("0x0", "0x0", { from: admin1 });
+
             await token.transfer(poolbase.address, 1e18);
             await poolbase.adminSetsBatch(token.address, { from: admin1 });
 
@@ -1247,6 +1252,8 @@ contract(
           });
 
           it("should NOT claim again", async () => {
+            await poolbase.adminClosesPool("0x0", "0x0", { from: admin1 });
+
             await token.transfer(poolbase.address, 1e18);
 
             await poolbase.adminSetsBatch(token.address, { from: admin1 });
@@ -1263,6 +1270,8 @@ contract(
           });
 
           it("should claim rest when new batch is added", async () => {
+            await poolbase.adminClosesPool("0x0", "0x0", { from: admin1 });
+
             await token.transfer(poolbase.address, 1e18);
 
             await poolbase.adminSetsBatch(token.address, { from: admin1 });
@@ -1286,6 +1295,46 @@ contract(
             const tokenBalanceInvestor2 = await token.balanceOf(investor2);
             tokenBalanceInvestor2.should.be.bignumber.eq(ether(2));
           });
+
+          it("should claim rest when new batch is added with odd contributions", async () => {
+           
+            await poolbase.deposit(validSignatureInvestor2, {
+              from: investor2, value: new ether(1)
+            })
+            await poolbase.deposit(validSignatureInvestor3, {
+              from: investor3, value: new ether(3)
+            })
+            await poolbase.adminClosesPool("0x0", "0x0", { from: admin1 });
+
+            //1+2+3 =6   1/6 2/6 3/6
+            await token.transfer(poolbase.address, 1e18);
+
+            await poolbase.adminSetsBatch(token.address, { from: admin1 });
+
+            await poolbase.claimToken(validSignatureInvestor1, { from: investor1 });
+            let tokenBalanceInvestor1 = await token.balanceOf(investor1);
+            tokenBalanceInvestor1.should.be.bignumber.eq(ether(2).div(6));
+
+            await poolbase.claimToken(validSignatureInvestor3, { from: investor3 });
+            let tokenBalanceInvestor3 = await token.balanceOf(investor3);
+            tokenBalanceInvestor3.should.be.bignumber.eq(ether(2).mul(3).div(6));
+
+            await token.transfer(poolbase.address, ether(2));
+            await poolbase.adminSetsBatch(token.address, { from: admin1 });
+
+            await poolbase.claimToken(validSignatureInvestor2, { from: investor2 });
+            const tokenBalanceInvestor2 = await token.balanceOf(investor2);
+            tokenBalanceInvestor2.should.be.bignumber.eq(ether(4).mul(2).div(6));
+
+            await poolbase.claimToken(validSignatureInvestor1, { from: investor1 });
+            tokenBalanceInvestor1 = await token.balanceOf(investor1);
+            tokenBalanceInvestor1.should.be.bignumber.eq(ether(4).div(6));
+
+            await poolbase.claimToken(validSignatureInvestor3, { from: investor3 });
+            tokenBalanceInvestor3 = await token.balanceOf(investor3);
+            tokenBalanceInvestor3.should.be.bignumber.eq(ether(4).mul(3).div(6));
+          });
+
         });
         // close context 'when using ERC20 tokens'
       });
