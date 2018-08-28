@@ -347,6 +347,7 @@ contract Poolbase is SignatureBouncer {
     function refund(bytes sig) external onlyValidSignature(sig) whenNotPaused {
         require(state == State.Active || state == State.Refunding);
         uint256 depositedValue = deposited[msg.sender];
+
         deposited[msg.sender] = 0;
         msg.sender.transfer(depositedValue);
         eventEmitter.logRefundedEvent(address(this), msg.sender, depositedValue);
@@ -365,7 +366,7 @@ contract Poolbase is SignatureBouncer {
         require(deposited[msg.sender] != 0);
 
         uint256 totalClaimableTokens;
-        
+
         totalClaimableTokens = totalTokens.mul(deposited[msg.sender]).div(totalWeiRaised);
 
         totalClaimableTokens = totalClaimableTokens.sub(tokenClaimed[msg.sender]);
@@ -384,7 +385,9 @@ contract Poolbase is SignatureBouncer {
     function adminClosesPool(address _payoutWallet, bytes32 txData) external onlyRole(ROLE_ADMIN) whenNotPaused {
         require(state == State.Active);
 
-        if (payoutWallet == address(0)) payoutWallet = _payoutWallet;
+        if (_payoutWallet != address(0)) {
+            payoutWallet = _payoutWallet;
+        }
 
         // ensures payout address is set
         require(payoutWallet != address(0));
@@ -414,7 +417,6 @@ contract Poolbase is SignatureBouncer {
         uint256 adminReward = address(this).balance.mul(adminPoolFeeNumerator).div(adminPoolFeeDenominator);
 
         if (isAdminFeeInWei) {
-
             adminPayoutWallet.transfer(adminReward);
 
             if (txData > bytes32(0)) {
