@@ -386,14 +386,10 @@ contract Poolbase is SignatureBouncer {
      */
     function adminClosesPool(address _payoutWallet, bytes txData) external onlyRole(ROLE_ADMIN) whenNotPaused {
         require(state == State.Active);
+        require(_payoutWallet != address(0));
 
-        if (_payoutWallet != address(0)) {
-            payoutWallet = _payoutWallet;
-        }
-
-        // ensures payout address is set
-        require(payoutWallet != address(0));
-
+        payoutWallet = _payoutWallet;
+        
         close(txData);
     }
 
