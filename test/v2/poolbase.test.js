@@ -1169,7 +1169,7 @@ contract(
           });
 
           it("must have the contract state still to Active", async () => {
-            poolbase.enableRefunds({
+            await poolbase.enableRefunds({
               from: admin1
             });
             let currentState = await poolbase.state();
@@ -1184,7 +1184,7 @@ contract(
           });
 
           it("is able to set a new payOutWallet when passing it as params", async () => {
-            poolbase.adminClosesPool(newPayoutWallet, "0x0", { from: admin1 });
+            await poolbase.adminClosesPool(newPayoutWallet, "0x0", { from: admin1 });
 
             const poolPayoutWallet = await poolbase.payoutWallet();
             poolPayoutWallet.should.be.equal(newPayoutWallet);
