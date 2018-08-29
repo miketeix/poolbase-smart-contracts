@@ -11,23 +11,32 @@ module.exports = async function(
   network,
   [coinbaseAccount, poolAdmin, superBouncer]
 ) {
+  // deploy contracts
   await deployer.deploy(PoolContract);
   await deployer.deploy(PoolbaseFactory, PoolContract.address);
   await deployer.deploy(PoolbaseEventEmitter);
+
+  // set up files for contract addresses
   writeAddressFile(PoolContract, "poolbaseCloneLibrary");
   writeAddressFile(PoolbaseFactory, "poolbaseFactory");
   writeAddressFile(PoolbaseEventEmitter, "poolbaseEventEmitter");
+
+  // setting up PoolbaseCloneFactory
   const factoryInstance = await PoolbaseFactory.at(PoolbaseFactory.address);
+
   await factoryInstance.setSuperBouncers([coinbaseAccount, superBouncer], {
     from: coinbaseAccount
   });
+
   await factoryInstance.setPoolbasePayoutWallet(coinbaseAccount, {
     from: coinbaseAccount
   });
-  await factoryInstance.setPoolbaseFee([5, 1000], { from: coinbaseAccount });
+
+  const poolbaseFee = [5, 1000];
   const poolParams = {
     maxAllocation: 200e18,
     adminPoolFee: [5, 1000],
+    poolbaseFee,
     isAdminFeeInWei: true,
     payoutWallet: coinbaseAccount,
     adminPayoutWallet: poolAdmin,
@@ -35,14 +44,19 @@ module.exports = async function(
     admins: [poolAdmin]
   };
   const params = [...Object.values(poolParams)];
+
+  // creates a pool
   await factoryInstance.create(...params, {
     from: coinbaseAccount
   });
+
   const poolAddress = await factoryInstance.instantiations.call(
     coinbaseAccount,
     0
   );
+  // pool that was created
   const poolInstance = PoolContract.at(poolAddress);
+  // checking for bouncers
   const isSuperBouncer = await poolInstance.hasRole(superBouncer, "bouncer");
   const isCoinbaseAccountSuperBouncer = await poolInstance.hasRole(
     coinbaseAccount,

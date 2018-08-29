@@ -10,7 +10,6 @@ contract PoolbaseCloneFactory is Ownable, CloneFactory {
     address public libraryAddress;
     address[2] public superBouncers;
     address public poolbasePayoutWallet;
-    uint256[2] public poolbaseFee;
 
     mapping(address => bool) public isInstantiation;
     mapping(address => address[]) public instantiations;
@@ -72,16 +71,6 @@ contract PoolbaseCloneFactory is Ownable, CloneFactory {
     }
 
     /**
-     * @dev Sets Poolbase fee. only called by Poolbase factory owner
-     * @param _poolbaseFee List with two elements referencing poolbase fee as a fraction
-     * e.g. 1/2 is [1,2]
-     */
-    function setPoolbaseFee(uint256[2] _poolbaseFee) external onlyOwner {
-        require(_poolbaseFee[0] != 0 && _poolbaseFee[1] != 0, "_poolbaseFee numbers cannot be zero");
-        poolbaseFee = _poolbaseFee;
-    }
-
-    /**
      * @dev Function getter for superBouncers
      */
     function getSuperBouncers() external view returns(address, address) {
@@ -93,13 +82,6 @@ contract PoolbaseCloneFactory is Ownable, CloneFactory {
      */
     function getPoolbasePayoutWallet() external view returns(address) {
         return poolbasePayoutWallet;
-    }
-
-    /**
-     * @dev Getter for poolbase fee
-     */
-    function getPoolbaseFee() external view returns(uint256, uint256) {
-        return (poolbaseFee[0], poolbaseFee[1]);
     }
 
     /**
@@ -119,6 +101,7 @@ contract PoolbaseCloneFactory is Ownable, CloneFactory {
      * @dev Allows verified creation of pools.
      * @param _maxAllocation Pool cap in wei
      * @param _adminPoolFee Percentage from the pool that goes to master admin pool
+     * @param _poolbaseFee Percentage from the pool that goes to Poolbase
      * @param _isAdminFeeInWei Check on whether master admin pool fee is paid out in Ether.
      * @param _payoutWallet Address where funds collected will be sent to at the end
      * @param _adminPayoutWallet Address where admin fees goes to
@@ -130,6 +113,7 @@ contract PoolbaseCloneFactory is Ownable, CloneFactory {
     (
         uint256 _maxAllocation,
         uint256[2] _adminPoolFee,
+        uint256[2] _poolbaseFee,
         bool _isAdminFeeInWei,
         address _payoutWallet,
         address _adminPayoutWallet,
@@ -143,7 +127,7 @@ contract PoolbaseCloneFactory is Ownable, CloneFactory {
             superBouncers,
             _maxAllocation,
             _adminPoolFee,
-            poolbaseFee,
+            _poolbaseFee,
             _isAdminFeeInWei,
             _payoutWallet,
             _adminPayoutWallet,
@@ -155,6 +139,7 @@ contract PoolbaseCloneFactory is Ownable, CloneFactory {
         bytes32 hashMessage = keccak256(abi.encodePacked(
             _maxAllocation,
             _adminPoolFee,
+            _poolbaseFee,
             _isAdminFeeInWei,
             _payoutWallet,
             _adminPayoutWallet,

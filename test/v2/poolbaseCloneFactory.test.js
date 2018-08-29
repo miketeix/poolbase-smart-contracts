@@ -4,7 +4,7 @@ const Poolbase = artifacts.require("./Poolbase.sol");
 
 const BigNumber = web3.BigNumber;
 
-contract(
+contract.only(
   "PoolbaseCloneFactory",
   ([
     owner,
@@ -22,6 +22,7 @@ contract(
     const maxAllocation = new BigNumber(200);
     const isAdminFeeInWei = true;
     const adminPoolFee = [1, 2];
+    const poolbaseFee = [2, 5];
 
     beforeEach(async () => {
       poolbase = await Poolbase.new();
@@ -165,47 +166,47 @@ contract(
       });
     });
 
-    describe("#setPoolbaseFee", () => {
-      it("does NOT allow a NON owner to set poolbaseFee", async () => {
-        try {
-          await poolbaseCloneFactory.setPoolbaseFee([1, 2], {
-            from: admin
-          });
-          assert.fail();
-        } catch (e) {
-          ensuresException(e);
-        }
+    // describe("#setPoolbaseFee", () => {
+    //   it("does NOT allow a NON owner to set poolbaseFee", async () => {
+    //     try {
+    //       await poolbaseCloneFactory.setPoolbaseFee([1, 2], {
+    //         from: admin
+    //       });
+    //       assert.fail();
+    //     } catch (e) {
+    //       ensuresException(e);
+    //     }
 
-        const poolbaseFee = await poolbaseCloneFactory.getPoolbaseFee();
-        poolbaseFee[0].should.be.bignumber.equal(0);
-        poolbaseFee[1].should.be.bignumber.equal(0);
-      });
+    //     const poolbaseFee = await poolbaseCloneFactory.getPoolbaseFee();
+    //     poolbaseFee[0].should.be.bignumber.equal(0);
+    //     poolbaseFee[1].should.be.bignumber.equal(0);
+    //   });
 
-      it("does NOT allow a owner to set empty address for poolbas fee", async () => {
-        try {
-          await poolbaseCloneFactory.setPoolbaseFee([0, 2], {
-            from: owner
-          });
-          assert.fail();
-        } catch (e) {
-          ensuresException(e);
-        }
+    //   it("does NOT allow a owner to set empty address for poolbas fee", async () => {
+    //     try {
+    //       await poolbaseCloneFactory.setPoolbaseFee([0, 2], {
+    //         from: owner
+    //       });
+    //       assert.fail();
+    //     } catch (e) {
+    //       ensuresException(e);
+    //     }
 
-        const poolbaseFee = await poolbaseCloneFactory.getPoolbaseFee();
-        poolbaseFee[0].should.be.bignumber.equal(0);
-        poolbaseFee[1].should.be.bignumber.equal(0);
-      });
+    //     const poolbaseFee = await poolbaseCloneFactory.getPoolbaseFee();
+    //     poolbaseFee[0].should.be.bignumber.equal(0);
+    //     poolbaseFee[1].should.be.bignumber.equal(0);
+    //   });
 
-      it("allows owner to set poolbaseFee", async () => {
-        await poolbaseCloneFactory.setPoolbaseFee([1, 2], {
-          from: owner
-        });
+    //   it("allows owner to set poolbaseFee", async () => {
+    //     await poolbaseCloneFactory.setPoolbaseFee([1, 2], {
+    //       from: owner
+    //     });
 
-        const poolbaseFee = await poolbaseCloneFactory.getPoolbaseFee();
-        poolbaseFee[0].should.be.bignumber.equal(1);
-        poolbaseFee[1].should.be.bignumber.equal(2);
-      });
-    });
+    //     const poolbaseFee = await poolbaseCloneFactory.getPoolbaseFee();
+    //     poolbaseFee[0].should.be.bignumber.equal(1);
+    //     poolbaseFee[1].should.be.bignumber.equal(2);
+    //   });
+    // });
 
     context("with vars set for poolbase contract creation", () => {
       beforeEach(async () => {
@@ -214,8 +215,6 @@ contract(
         await poolbaseCloneFactory.setPoolbasePayoutWallet(
           poolbasePayoutWallet
         );
-
-        await poolbaseCloneFactory.setPoolbaseFee([1, 2]);
       });
 
       describe("poolbase clone factory contract deployment", () => {
@@ -237,6 +236,7 @@ contract(
           const { logs } = await poolbaseCloneFactory.create(
             maxAllocation,
             adminPoolFee,
+            poolbaseFee,
             isAdminFeeInWei,
             payoutWallet,
             adminPayoutWallet,
@@ -284,6 +284,7 @@ contract(
             await newPoolbaseCloneFactory.create(
               maxAllocation,
               adminPoolFee,
+              poolbaseFee,
               isAdminFeeInWei,
               payoutWallet,
               adminPayoutWallet,
@@ -304,6 +305,7 @@ contract(
           const poolTx = await poolbaseCloneFactory.create(
             maxAllocation,
             adminPoolFee,
+            poolbaseFee,
             isAdminFeeInWei,
             payoutWallet,
             adminPayoutWallet,
@@ -332,6 +334,7 @@ contract(
           const { logs } = await poolbaseCloneFactory.create(
             maxAllocation,
             adminPoolFee,
+            poolbaseFee,
             isAdminFeeInWei,
             payoutWallet,
             adminPayoutWallet,
@@ -359,6 +362,7 @@ contract(
           await poolbaseCloneFactory.create(
             maxAllocation,
             adminPoolFee,
+            poolbaseFee,
             isAdminFeeInWei,
             payoutWallet,
             adminPayoutWallet,
@@ -375,6 +379,7 @@ contract(
           await poolbaseCloneFactory.create(
             maxAllocation,
             adminPoolFee,
+            poolbaseFee,
             isAdminFeeInWei,
             payoutWallet,
             adminPayoutWallet,
@@ -395,6 +400,7 @@ contract(
           await poolbaseCloneFactory.create(
             maxAllocation,
             adminPoolFee,
+            poolbaseFee,
             isAdminFeeInWei,
             payoutWallet,
             adminPayoutWallet,

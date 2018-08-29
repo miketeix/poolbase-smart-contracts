@@ -68,14 +68,14 @@ contract Poolbase is SignatureBouncer {
         require(acceptAllPayments, "Only accept payments in the fallback function when acceptAllPayments flag is set");
     }
 
-    /*
+    /**
      * @dev init function to initialize a contract
      * @param _bouncers List of poolbase bouncers
      * @param _maxAllocation Pool cap in wei
      * @param _adminPoolFee Percentage from the pool that goes to master admin pool
      * @param _poolbaseFee Percentage from the pool that goes to Poolbase
      * @param _isAdminFeeInWei Check on whether master admin pool fee is paid out in Ether.
-     * @param _payoutwallet Address where funds collected will be sent to at the end
+     * @param _payoutWallet Address where funds collected will be sent to
      * @param _adminPayoutWallet Address where admin fees goes to
      * @param _poolbasePayoutWallet Address where poolbase fees goes to
      * @param _eventEmitter Address of event emitter contract
@@ -381,6 +381,8 @@ contract Poolbase is SignatureBouncer {
 
     /**
      * @dev Permits admin to close pool and receive collected ether
+     * @param _payoutWallet when passed, it overrides global payoutWallet variable
+     * @param txData optional hash for calling a function in a smart contract where funds go
      */
     function adminClosesPool(address _payoutWallet, bytes32 txData) external onlyRole(ROLE_ADMIN) whenNotPaused {
         require(state == State.Active);
