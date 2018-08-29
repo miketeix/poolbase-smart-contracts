@@ -1,12 +1,18 @@
 const Poolbase = artifacts.require("./Poolbase.sol");
 const TokenMock = artifacts.require("./TokenMock.sol");
+const ReceivePoolPayoutMock = artifacts.require("./ReceivePoolPayoutMock.sol");
 const PoolbaseEventEmitter = artifacts.require("./PoolbaseEventEmitter.sol");
 web3.BigNumber.config({
   DECIMAL_PLACES: 0,
   ROUNDING_MODE: web3.BigNumber.ROUND_FLOOR
 });
 const BigNumber = web3.BigNumber;
-const { ensuresException, ether, keccak256 } = require("../helpers/utils");
+const {
+  ensuresException,
+  ether,
+  keccak256,
+  getMethodId
+} = require("../helpers/utils");
 const assertRevert = require("../helpers/assertRevert");
 
 contract(
@@ -1201,6 +1207,14 @@ contract(
               { from: owner }
             );
 
+            const toSignInvestor = keccak256(poolbase.address, investor1);
+            validSignatureInvestor1 = web3.eth.sign(bouncer1, toSignInvestor);
+
+            await poolbase.deposit(validSignatureInvestor1, {
+              from: investor1,
+              value: ether(10)
+            });
+
             await assertRevert(
               poolbase.adminClosesPool("0x0", "0x0", { from: admin1 })
             );
@@ -1211,62 +1225,6 @@ contract(
             );
           });
 
-          /**
-           * @dev Permits admin to close pool and receive collected ether
-           */
-          // function adminClosesPool(address _payoutWallet, bytes32 txData) external onlyRole(ROLE_ADMIN) whenNotPaused {
-          //   require(state == State.Active);
-
-          //   if (payoutWallet == address(0)) payoutWallet = _payoutWallet;
-
-          //   // ensures payout address is set
-          //   require(payoutWallet != address(0));
-
-          //   close(txData);
-          // }
-
-          //      *
-          //      * @dev Internal function with core logic of pool closing event
-          //      * @param txData Used when close function must send a low level function to a smart contract.
-          //      * if not used then pass as 0(zero) bytes
-          //      * /
-          //       function close(bytes32 txData) internal {
-          //         state = State.Closed;
-
-          //         eventEmitter.logClosedEvent(address(this), msg.sender);
-
-          //         totalWeiRaised = address(this).balance;
-
-          //         uint poolbaseNumerator = poolbaseFee[0];
-          //         uint poolbaseDenominator = poolbaseFee[1];
-          //         uint256 poolBaseReward = address(this).balance.mul(poolbaseNumerator).div(poolbaseDenominator);
-          //         poolbasePayoutWallet.transfer(poolBaseReward);
-
-          //         uint adminPoolFeeNumerator = adminPoolFee[0];
-          //         uint adminPoolFeeDenominator = adminPoolFee[1];
-          //         uint256 adminReward = address(this).balance.mul(adminPoolFeeNumerator).div(adminPoolFeeDenominator);
-
-          //         if (isAdminFeeInWei) {
-          //           adminPayoutWallet.transfer(adminReward);
-
-          //           if (txData > bytes32(0)) {
-          //             payoutWallet.call.value(address(this).balance)(txData);
-          //           } else {
-          //             payoutWallet.transfer(address(this).balance);
-          //           }
-          //         } else {
-          //           // add adminPoolFee on top of the payout value
-          //           totalWeiRaised = totalWeiRaised.add(adminReward);
-          //           deposited[adminPayoutWallet] = deposited[adminPayoutWallet].add(adminReward);
-
-          //           if (txData > bytes32(0)) {
-          //             payoutWallet.call.value(address(this).balance)(txData);
-          //           } else {
-          //             payoutWallet.transfer(address(this).balance);
-          //           }
-          //         }
-          //       }
-
           // enum State { Active, Refunding, Closed, TokenPayout }
           it("sets state to Closed", async () => {
             let currentState = await poolbase.state();
@@ -1276,6 +1234,320 @@ contract(
 
             currentState = await poolbase.state();
             currentState.should.be.bignumber.equal(2); // Closed
+          });
+
+          it("emits Closed event", async () => {
+            const watcher = poolbaseEventEmitter.Closed();
+
+            await poolbase.adminClosesPool("0x0", "0x0", {
+              from: admin1
+            });
+
+            const events = watcher.get();
+            const { event, args } = events[0];
+            const { msgSender, poolContractAddress } = args;
+
+            event.should.be.equal("Closed");
+            msgSender.should.be.equal(admin1);
+            poolContractAddress.should.be.equal(poolbase.address);
+          });
+
+          it("transfers poolbaseReward accurately", async () => {
+            // 10 ether already deposited in pool
+            const poolbasePayoutWalletWeiBalanceBefore = await web3.eth.getBalance(
+              poolbasePayoutWallet
+            );
+
+            const contractBalanceBefore = await web3.eth.getBalance(
+              poolbase.address
+            );
+
+            await poolbase.adminClosesPool("0x0", "0x0", {
+              from: admin1
+            });
+
+            const poolbasePayoutWalletWeiBalanceAfter = await web3.eth.getBalance(
+              poolbasePayoutWallet
+            );
+
+            const poolbasePayoutWalletBalanceDiff = poolbasePayoutWalletWeiBalanceAfter.minus(
+              poolbasePayoutWalletWeiBalanceBefore
+            );
+
+            poolbasePayoutWalletBalanceDiff.should.be.bignumber.eq(
+              contractBalanceBefore.mul(poolbaseFee[0]).div(poolbaseFee[1])
+            );
+
+            const contractBalanceAfter = await web3.eth.getBalance(
+              poolbase.address
+            );
+            contractBalanceAfter.should.be.bignumber.eq(0);
+          });
+
+          it("transfers AdminReward correctly in Wei when isAdminFeeInWei flag is set", async () => {
+            // 10 ether already deposited in pool and isAdminFeeInWei is set to true
+            const adminPayoutWalletWeiBalanceBefore = await web3.eth.getBalance(
+              adminPayoutWallet
+            );
+
+            const contractBalanceBefore = await web3.eth.getBalance(
+              poolbase.address
+            );
+
+            await poolbase.adminClosesPool("0x0", "0x0", {
+              from: admin1
+            });
+
+            const adminPayoutWalletWeiBalanceAfter = await web3.eth.getBalance(
+              adminPayoutWallet
+            );
+
+            const adminPayoutWalletBalanceDiff = adminPayoutWalletWeiBalanceAfter.minus(
+              adminPayoutWalletWeiBalanceBefore
+            );
+
+            adminPayoutWalletBalanceDiff.should.be.bignumber.eq(
+              contractBalanceBefore.mul(adminPoolFee[0]).div(adminPoolFee[1])
+            );
+
+            const contractBalanceAfter = await web3.eth.getBalance(
+              poolbase.address
+            );
+            contractBalanceAfter.should.be.bignumber.eq(0);
+          });
+
+          it("transfers pool balance correctly in Wei to global payoutWallet when isAdminFeeInWei is set", async () => {
+            // 10 ether already deposited in pool and isAdminFeeInWei is set to true
+            const payoutWalletWeiBalanceBefore = await web3.eth.getBalance(
+              payoutWallet
+            );
+
+            const contractBalanceBefore = await web3.eth.getBalance(
+              poolbase.address
+            );
+
+            await poolbase.adminClosesPool("0x0", "0x0", {
+              from: admin1
+            });
+
+            const payoutWalletWeiBalanceAfter = await web3.eth.getBalance(
+              payoutWallet
+            );
+
+            const payoutWalletBalanceDiff = payoutWalletWeiBalanceAfter.minus(
+              payoutWalletWeiBalanceBefore
+            );
+
+            const poolbaseFeeTaken = contractBalanceBefore
+              .mul(poolbaseFee[0])
+              .div(poolbaseFee[1]);
+            const adminPoolFeeTaken = contractBalanceBefore
+              .mul(adminPoolFee[0])
+              .div(adminPoolFee[1]);
+
+            payoutWalletBalanceDiff.should.be.bignumber.eq(
+              contractBalanceBefore
+                .minus(poolbaseFeeTaken)
+                .minus(adminPoolFeeTaken)
+            );
+
+            // pool should have no ether left
+            const contractBalanceAfter = await web3.eth.getBalance(
+              poolbase.address
+            );
+            contractBalanceAfter.should.be.bignumber.eq(0);
+          });
+
+          it("transfers pool balance correctly in Wei to newPayoutWallet when isAdminFeeInWei is set", async () => {
+            // 10 ether already deposited in pool and isAdminFeeInWei is set to true
+            const newPayoutWalletWeiBalanceBefore = await web3.eth.getBalance(newPayoutWallet);
+
+            const contractBalanceBefore = await web3.eth.getBalance(poolbase.address);
+
+            await poolbase.adminClosesPool(newPayoutWallet, "0x0", {
+              from: admin1
+            });
+
+            const newPayoutWalletWeiBalanceAfter = await web3.eth.getBalance(newPayoutWallet);
+
+            const newPayoutWalletBalanceDiff = newPayoutWalletWeiBalanceAfter.minus(newPayoutWalletWeiBalanceBefore);
+
+            const poolbaseFeeTaken = contractBalanceBefore
+              .mul(poolbaseFee[0])
+              .div(poolbaseFee[1]);
+            const adminPoolFeeTaken = contractBalanceBefore
+              .mul(adminPoolFee[0])
+              .div(adminPoolFee[1]);
+
+            newPayoutWalletBalanceDiff.should.be.bignumber.eq(contractBalanceBefore
+              .minus(poolbaseFeeTaken)
+              .minus(adminPoolFeeTaken));
+
+            // pool should have no ether left
+            const contractBalanceAfter = await web3.eth.getBalance(poolbase.address);
+            contractBalanceAfter.should.be.bignumber.eq(0);
+          });
+
+          it("transfers pool balance correctly in Wei to external smart contract when isAdminFeeInWei is set", async () => {
+            // 10 ether already deposited in pool and isAdminFeeInWei is set to true
+
+            const receivePoolPayout = await ReceivePoolPayoutMock.new();
+            const hash = "0x" + getMethodId("receivePayout");
+
+            const contractBalanceBefore = await web3.eth.getBalance(
+              poolbase.address
+            );
+
+            // admin closes the pool
+            await poolbase.adminClosesPool(receivePoolPayout.address, hash, {
+              from: admin1
+            });
+
+            const receivePoolPayoutWeiBalance = await web3.eth.getBalance(
+              receivePoolPayout.address
+            );
+
+            const poolbaseFeeTaken = contractBalanceBefore
+              .mul(poolbaseFee[0])
+              .div(poolbaseFee[1]);
+            const adminPoolFeeTaken = contractBalanceBefore
+              .mul(adminPoolFee[0])
+              .div(adminPoolFee[1]);
+
+            receivePoolPayoutWeiBalance.should.be.bignumber.eq(
+              contractBalanceBefore
+                .minus(poolbaseFeeTaken)
+                .minus(adminPoolFeeTaken)
+            );
+
+            // pool should have no ether left
+            const contractBalanceAfter = await web3.eth.getBalance(
+              poolbase.address
+            );
+            contractBalanceAfter.should.be.bignumber.eq(0);
+          });
+
+          it("adds adminReward to totalWeiRaised and set admin's contribution when admin does not set isAdminFeeInWei", async () => {
+            // setup
+            poolbase = await Poolbase.new();
+
+            const noAdminFeeInWei = false;
+
+            await poolbase.init(
+              [bouncer1, bouncer2],
+              maxAllocation,
+              adminPoolFee,
+              poolbaseFee,
+              noAdminFeeInWei,
+              payoutWallet,
+              adminPayoutWallet,
+              poolbasePayoutWallet,
+              poolbaseEventEmitter.address,
+              [admin1, admin2],
+              { from: owner }
+            );
+            const toSignInvestor = keccak256(poolbase.address, investor1);
+            validSignatureInvestor1 = web3.eth.sign(bouncer1, toSignInvestor);
+            await poolbase.deposit(validSignatureInvestor1, {
+              from: investor1,
+              value: ether(10)
+            });
+
+            const payoutWalletWeiBalanceBefore = await web3.eth.getBalance(payoutWallet);
+
+            const contractBalanceBefore = await web3.eth.getBalance(poolbase.address);
+
+            // admin closes pool
+            await poolbase.adminClosesPool("0x0", "0x0", {
+              from: admin1
+            });
+
+            const payoutWalletWeiBalanceAfter = await web3.eth.getBalance(payoutWallet);
+
+            const payoutWalletBalanceDiff = payoutWalletWeiBalanceAfter.minus(payoutWalletWeiBalanceBefore);
+
+            const poolbaseFeeTaken = contractBalanceBefore
+              .mul(poolbaseFee[0])
+              .div(poolbaseFee[1]);
+
+            payoutWalletBalanceDiff.should.be.bignumber.eq(contractBalanceBefore.minus(poolbaseFeeTaken));
+
+            const adminPoolReward = contractBalanceBefore
+              .mul(adminPoolFee[0])
+              .div(adminPoolFee[1]);
+
+            // admin should be now a contributor because he chose to receive tokens as payment
+            const adminContribution = await poolbase.deposited(adminPayoutWallet);
+            adminContribution.should.be.bignumber.eq(adminPoolReward);
+
+            // adminReward should be added to totalWeiRaised
+            const totalWeiRaised = await poolbase.totalWeiRaised();
+            totalWeiRaised.should.be.bignumber.eq(contractBalanceBefore.add(adminPoolReward));
+
+            // pool should have no ether left
+            const contractBalanceAfter = await web3.eth.getBalance(poolbase.address);
+            contractBalanceAfter.should.be.bignumber.eq(0);
+          });
+
+          it("sends funds to external contract plus adds adminReward to totalWeiRaised and set admin's contribution when admin does not set isAdminFeeInWei", async () => {
+            // setup
+            poolbase = await Poolbase.new();
+
+            const noAdminFeeInWei = false;
+
+            await poolbase.init(
+              [bouncer1, bouncer2],
+              maxAllocation,
+              adminPoolFee,
+              poolbaseFee,
+              noAdminFeeInWei,
+              payoutWallet,
+              adminPayoutWallet,
+              poolbasePayoutWallet,
+              poolbaseEventEmitter.address,
+              [admin1, admin2],
+              { from: owner }
+            );
+            const toSignInvestor = keccak256(poolbase.address, investor1);
+            validSignatureInvestor1 = web3.eth.sign(bouncer1, toSignInvestor);
+            await poolbase.deposit(validSignatureInvestor1, {
+              from: investor1,
+              value: ether(10)
+            });
+
+            const receivePoolPayout = await ReceivePoolPayoutMock.new();
+            const hash = "0x" + getMethodId("receivePayout");
+
+            const contractBalanceBefore = await web3.eth.getBalance(poolbase.address);
+
+            // admin closes pool
+            await poolbase.adminClosesPool(receivePoolPayout.address, hash, {
+              from: admin1
+            });
+
+            const receivePoolPayoutWeiBalance = await web3.eth.getBalance(receivePoolPayout.address);
+
+            const poolbaseFeeTaken = contractBalanceBefore
+              .mul(poolbaseFee[0])
+              .div(poolbaseFee[1]);
+
+            receivePoolPayoutWeiBalance.should.be.bignumber.eq(contractBalanceBefore.minus(poolbaseFeeTaken));
+
+            const adminPoolReward = contractBalanceBefore
+              .mul(adminPoolFee[0])
+              .div(adminPoolFee[1]);
+
+            // admin should be now a contributor because he chose to receive tokens as payment
+            const adminContribution = await poolbase.deposited(adminPayoutWallet);
+            adminContribution.should.be.bignumber.eq(adminPoolReward);
+
+            // adminReward should be added to totalWeiRaised
+            const totalWeiRaised = await poolbase.totalWeiRaised();
+            totalWeiRaised.should.be.bignumber.eq(contractBalanceBefore.add(adminPoolReward));
+
+            // pool should have no ether left
+            const contractBalanceAfter = await web3.eth.getBalance(poolbase.address);
+            contractBalanceAfter.should.be.bignumber.eq(0);
           });
         });
 
