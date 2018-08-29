@@ -4,7 +4,7 @@ const Poolbase = artifacts.require("./Poolbase.sol");
 
 const BigNumber = web3.BigNumber;
 
-contract.only(
+contract(
   "PoolbaseCloneFactory",
   ([
     owner,
