@@ -31,3 +31,7 @@ To see current test coverage open `coverage/index.html` in a browser.
 To generate test coverage, type:
 
 -   `npm run cov`
+
+To generate flattened version of contracts in `flats/`, type:
+
+-   `npm run flat`
