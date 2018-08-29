@@ -166,48 +166,6 @@ contract.only(
       });
     });
 
-    // describe("#setPoolbaseFee", () => {
-    //   it("does NOT allow a NON owner to set poolbaseFee", async () => {
-    //     try {
-    //       await poolbaseCloneFactory.setPoolbaseFee([1, 2], {
-    //         from: admin
-    //       });
-    //       assert.fail();
-    //     } catch (e) {
-    //       ensuresException(e);
-    //     }
-
-    //     const poolbaseFee = await poolbaseCloneFactory.getPoolbaseFee();
-    //     poolbaseFee[0].should.be.bignumber.equal(0);
-    //     poolbaseFee[1].should.be.bignumber.equal(0);
-    //   });
-
-    //   it("does NOT allow a owner to set empty address for poolbas fee", async () => {
-    //     try {
-    //       await poolbaseCloneFactory.setPoolbaseFee([0, 2], {
-    //         from: owner
-    //       });
-    //       assert.fail();
-    //     } catch (e) {
-    //       ensuresException(e);
-    //     }
-
-    //     const poolbaseFee = await poolbaseCloneFactory.getPoolbaseFee();
-    //     poolbaseFee[0].should.be.bignumber.equal(0);
-    //     poolbaseFee[1].should.be.bignumber.equal(0);
-    //   });
-
-    //   it("allows owner to set poolbaseFee", async () => {
-    //     await poolbaseCloneFactory.setPoolbaseFee([1, 2], {
-    //       from: owner
-    //     });
-
-    //     const poolbaseFee = await poolbaseCloneFactory.getPoolbaseFee();
-    //     poolbaseFee[0].should.be.bignumber.equal(1);
-    //     poolbaseFee[1].should.be.bignumber.equal(2);
-    //   });
-    // });
-
     context("with vars set for poolbase contract creation", () => {
       beforeEach(async () => {
         await poolbaseCloneFactory.setSuperBouncers([bouncer, bouncer2]);
