@@ -384,7 +384,7 @@ contract Poolbase is SignatureBouncer {
      * @param _payoutWallet when passed, it overrides global payoutWallet variable
      * @param txData optional hash for calling a function in a smart contract where funds go
      */
-    function adminClosesPool(address _payoutWallet, bytes32 txData) external onlyRole(ROLE_ADMIN) whenNotPaused {
+    function adminClosesPool(address _payoutWallet, bytes txData) external onlyRole(ROLE_ADMIN) whenNotPaused {
         require(state == State.Active);
 
         if (_payoutWallet != address(0)) {
@@ -402,40 +402,64 @@ contract Poolbase is SignatureBouncer {
      * @param txData Used when close function must send a low level function to a smart contract.
      * if not used then pass as 0(zero) bytes
      */
-    function close(bytes32 txData) internal {
+    function close(bytes txData) internal {
         state = State.Closed;
-
         eventEmitter.logClosedEvent(address(this), msg.sender);
-
         totalWeiRaised = address(this).balance;
 
         uint poolbaseNumerator = poolbaseFee[0];
         uint poolbaseDenominator = poolbaseFee[1];
-        uint256 poolBaseReward = address(this).balance.mul(poolbaseNumerator).div(poolbaseDenominator);
+        uint256 poolBaseReward = totalWeiRaised.mul(poolbaseNumerator).div(poolbaseDenominator);
         poolbasePayoutWallet.transfer(poolBaseReward);
 
         uint adminPoolFeeNumerator = adminPoolFee[0];
         uint adminPoolFeeDenominator = adminPoolFee[1];
-        uint256 adminReward = address(this).balance.mul(adminPoolFeeNumerator).div(adminPoolFeeDenominator);
+        uint256 adminReward = totalWeiRaised.mul(adminPoolFeeNumerator).div(adminPoolFeeDenominator);
 
         if (isAdminFeeInWei) {
             adminPayoutWallet.transfer(adminReward);
 
-            if (txData > bytes32(0)) {
-                payoutWallet.call.value(address(this).balance)(txData);
-            } else {
-                payoutWallet.transfer(address(this).balance);
-            }
+            transferPoolFunds(txData);
         } else {
-            // add adminPoolFee on top of the payout value
+            // add adminReward on top of the payout value
             totalWeiRaised = totalWeiRaised.add(adminReward);
             deposited[adminPayoutWallet] = deposited[adminPayoutWallet].add(adminReward);
 
-            if (txData > bytes32(0)) {
-                payoutWallet.call.value(address(this).balance)(txData);
-            } else {
-                payoutWallet.transfer(address(this).balance);
-            }
+            transferPoolFunds(txData);
         }
+    }
+
+    /**
+     * @dev Internal function for sending pool funds to payoutWallet
+     * @param txData Used when close function must send a low level function to a smart contract.
+     */
+    function transferPoolFunds(bytes txData) internal {
+        // external_call is same as using `payoutWallet.call.value(address(this).balance)(txData);`
+        // if external call returns false ie no method found then send balance to address of payoutWallet
+        if (!external_call(payoutWallet, address(this).balance, txData.length, txData)) {
+            payoutWallet.transfer(address(this).balance);
+        }
+    }
+
+    // call has been separated into its own function in order to take advantage
+    // of the Solidity's code generator to produce a loop that copies tx.data into memory.
+    function external_call(address destination, uint value, uint dataLength, bytes data) internal returns (bool) {
+        bool result;
+        assembly {
+            let x := mload(0x40)   // "Allocate" memory for output (0x40 is where "free memory" pointer is stored by convention)
+            let d := add(data, 32) // First 32 bytes are the padded length of data, so exclude that
+            result := call(
+                sub(gas, 34710),   // 34710 is the value that solidity is currently emitting
+                                   // It includes callGas (700) + callVeryLow (3, to pay for SUB) + callValueTransferGas (9000) +
+                                   // callNewAccountGas (25000, in case the destination address does not exist and needs creating)
+                destination,
+                value,
+                d,
+                dataLength,        // Size of the input (in bytes) - this is what fixes the padding problem
+                x,
+                0                  // Output is ignored, therefore the output size is zero
+            )
+        }
+        return result;
     }
 }
