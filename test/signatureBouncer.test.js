@@ -2,7 +2,7 @@
 
 const assertRevert = require("./helpers/assertRevert");
 const { signHex } = require("./helpers/sign");
-const { should } = require("./helpers/utils");
+const { should, getMethodId } = require("./helpers/utils");
 
 const Bouncer = artifacts.require("SignatureBouncerMock");
 
@@ -11,11 +11,6 @@ const getSigner = (contract, signer, data = "") => addr => {
   const message = contract.address.substr(2) + addr.substr(2) + data;
   // ^ substr to remove `0x` because in solidity the address is a set of byes, not a string `0xabcd`
   return signHex(signer, message);
-};
-
-const getMethodId = (methodName, ...paramTypes) => {
-  // methodId is a sha3 of the first 4 bytes after 0x of 'method(paramType1,...)'
-  return web3.sha3(`${methodName}(${paramTypes.join(",")})`).substr(2, 8);
 };
 
 const stripAndPadHexValue = (hexVal, sizeInBytes, start = true) => {
