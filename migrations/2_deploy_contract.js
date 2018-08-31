@@ -6,10 +6,12 @@ const PoolbaseEventEmitter = artifacts.require("./PoolbaseEventEmitter");
 const PoolContract = artifacts.require("./Poolbase");
 const addressesPath = path.join(__dirname, "../addresses");
 
+const superBouncerSignerAddress = "0xc269e92892A1DFc71E4667dA6f7e6A44f1706615";
+
 module.exports = async function(
   deployer,
   network,
-  [coinbaseAccount, poolAdmin, superBouncer]
+  [coinbaseAccount, poolAdmin]
 ) {
   // deploy contracts
   await deployer.deploy(PoolContract);
@@ -24,9 +26,12 @@ module.exports = async function(
   // setting up PoolbaseCloneFactory
   const factoryInstance = await PoolbaseFactory.at(PoolbaseFactory.address);
 
-  await factoryInstance.setSuperBouncers([coinbaseAccount, superBouncer], {
-    from: coinbaseAccount
-  });
+  await factoryInstance.setSuperBouncers(
+    [coinbaseAccount, superBouncerSignerAddress],
+    {
+      from: coinbaseAccount
+    }
+  );
 
   await factoryInstance.setPoolbasePayoutWallet(coinbaseAccount, {
     from: coinbaseAccount
@@ -56,8 +61,12 @@ module.exports = async function(
   );
   // pool that was created
   const poolInstance = PoolContract.at(poolAddress);
+
   // checking for bouncers
-  const isSuperBouncer = await poolInstance.hasRole(superBouncer, "bouncer");
+  const isSuperBouncer = await poolInstance.hasRole(
+    superBouncerSignerAddress,
+    "bouncer"
+  );
   const isCoinbaseAccountSuperBouncer = await poolInstance.hasRole(
     coinbaseAccount,
     "bouncer"
