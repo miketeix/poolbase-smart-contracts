@@ -1,11 +1,11 @@
 /* **** Truffle exec script run using the command:
-    truffle exec ./test/scripts/createToken.js
+    truffle exec ./scripts/createToken.js
 **** */
 
-const Web3 = require("../../node_modules/web3");
+const Web3 = require("web3");
 
 //poolbase
-const tokenArtifact = require("../../build/contracts/GustavoCoin.json");
+const tokenArtifact = require("../build/contracts/GustavoCoin.json");
 
 module.exports = async function(callback) {
   const web3 = new Web3("http://localhost:8545");
