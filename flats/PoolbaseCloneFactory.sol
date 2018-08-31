@@ -178,16 +178,16 @@ contract PoolbaseCloneFactory is Ownable, CloneFactory {
      * @dev Add super bouncers to a poolbase contract
      * @param _superBouncer Super bouncer that belong to poolbase.io
      */
-    function addBouncersToAPool(address _superBouncer, address poolAddress) external onlyOwner {
+    function addBouncersToPool(address _superBouncer, address poolAddress) external onlyOwner {
         require(_superBouncer != address(0), "_superBouncer addresse cannot be empty");
         PoolbaseInterface(poolAddress).addBouncer(_superBouncer);
     }
 
     /**
-     * @dev Remove super bouncers to a poolbase contract
+     * @dev Remove super bouncers from a poolbase contract
      * @param _superBouncer Super bouncer that belong to poolbase.io
      */
-    function removeBouncersToAPool(address _superBouncer, address poolAddress) external onlyOwner {
+    function removeBouncersFromPool(address _superBouncer, address poolAddress) external onlyOwner {
         require(_superBouncer != address(0), "_superBouncer address cannot be empty");
         PoolbaseInterface(poolAddress).removeBouncer(_superBouncer);
     }
