@@ -384,7 +384,7 @@ contract(
 
         it("cannot add a bouncer when called by a non-owner", async () => {
           try {
-            await poolbaseCloneFactory.addBouncersToAPool(
+            await poolbaseCloneFactory.addBouncersToPool(
               bouncer3,
               poolbase.address,
               { from: bouncer3 }
@@ -397,7 +397,7 @@ contract(
           let isBouncer = await poolbase.hasRole(bouncer3, "bouncer");
           isBouncer.should.be.false;
 
-          await poolbaseCloneFactory.addBouncersToAPool(
+          await poolbaseCloneFactory.addBouncersToPool(
             bouncer3,
             poolbase.address,
             { from: owner }
@@ -409,7 +409,7 @@ contract(
 
         it("cannot add a bouncer with an empty bouncer address", async () => {
           try {
-            await poolbaseCloneFactory.addBouncersToAPool(
+            await poolbaseCloneFactory.addBouncersToPool(
               "0x0000000000000000000000000000000000000000",
               poolbase.address,
               { from: owner }
@@ -425,7 +425,7 @@ contract(
           );
           isBouncer.should.be.false;
 
-          await poolbaseCloneFactory.addBouncersToAPool(
+          await poolbaseCloneFactory.addBouncersToPool(
             bouncer3,
             poolbase.address,
             { from: owner }
@@ -436,7 +436,7 @@ contract(
         });
 
         it("adds new bouncer to contract", async () => {
-          await poolbaseCloneFactory.addBouncersToAPool(
+          await poolbaseCloneFactory.addBouncersToPool(
             bouncer3,
             poolbase.address,
             { from: owner }
@@ -451,7 +451,7 @@ contract(
           isBouncer.should.be.true;
 
           try {
-            await poolbaseCloneFactory.removeBouncersToAPool(
+            await poolbaseCloneFactory.removeBouncersFromPool(
               bouncer2,
               poolbase.address,
               { from: bouncer3 }
@@ -464,7 +464,7 @@ contract(
           isBouncer = await poolbase.hasRole(bouncer2, "bouncer");
           isBouncer.should.be.true;
 
-          await poolbaseCloneFactory.removeBouncersToAPool(
+          await poolbaseCloneFactory.removeBouncersFromPool(
             bouncer2,
             poolbase.address,
             { from: owner }
@@ -476,7 +476,7 @@ contract(
 
         it("cannot remove a bouncer with an empty bouncer address", async () => {
           try {
-            await poolbaseCloneFactory.removeBouncersToAPool(
+            await poolbaseCloneFactory.removeBouncersFromPool(
               "0x0000000000000000000000000000000000000000",
               poolbase.address,
               { from: owner }
@@ -497,7 +497,7 @@ contract(
           let isBouncer = await poolbase.hasRole(bouncer2, "bouncer");
           isBouncer.should.be.true;
 
-          await poolbaseCloneFactory.removeBouncersToAPool(
+          await poolbaseCloneFactory.removeBouncersFromPool(
             bouncer2,
             poolbase.address,
             { from: owner }
